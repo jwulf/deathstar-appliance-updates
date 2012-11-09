@@ -1,5 +1,7 @@
 #!/bin/bash
 # This is the plain vanilla installer file for the GA appliance
+
+clear
 echo
 echo
 echo
