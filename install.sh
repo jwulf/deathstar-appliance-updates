@@ -1,4 +1,16 @@
 #!/bin/bash
+# This is the plain vanilla installer file for the GA appliance
+
+echo
+echo =================================================================
+echo 
+echo            Death Star Virtual Appliance Installer
+echo 
+echo =================================================================
+echo 
+echo "Thank you for purchasing a Death Star Virtual Appliance." 
+echo "Our team of robot installers will now install your purchase."
+
 
 NAME="Death_Star"
 MAC="00:16:3e:77:e2:ed"
@@ -20,15 +32,23 @@ fi
 
 # Download the vmimage
 # curl supports resume with "-C -" 
-echo "Downloading the image"
+echo ================Step One
+echo 
+echo Downloading the Death Star Virtual Appliance image
+echo The image file is ~3.5GB in size, and will download from your nearest Amazon CloudFront edge location
+echo 
+
 curl -C - -L -O ${VM_FILE_URL}
 
 
 # mkdir in /opt/deathstar
+echo ================Step Two
+echo
 echo "Performing installation. This may prompt for your password."
 if [ ! -z /opt/deathstar ]; then
   sudo mkdir /opt/deathstar;
 fi
+
 
 # Copy vmimage to /opt/deathstar
 sudo mv ${VM_FILE_NAME} /opt/deathstar/
@@ -87,15 +107,15 @@ sudo echo "$hostline" >> "$filename"
   echo
 fi
 
-echo "Installing Virtual Appliance"
+echo "Installing the Death Star to your Hypervisor"
 echo
 # Now we install the virtual appliance
 sudo virt-install -n ${NAME} --import --disk deathstar-virtual-appliance-sda.raw --arch=i686 --os-variant=fedora17 --ram 512 --force --mac 00:16:3e:77:e2:ed --network network:${NETWORK_NAME} --autostart --noautoconsole --quiet
-
+echo
 echo "Warming up the lasers...."
 
 sleep 30
-
+echo
 echo "This battlestation is now fully operational. Open your web browser to http://tinyurl.com/start-deathstar. May the Force Be with You."
 
 xdg-open http://tinyurl.com/start-deathstar
