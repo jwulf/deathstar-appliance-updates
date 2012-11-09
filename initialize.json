@@ -8,16 +8,16 @@
 
 		"Install Publican Death Star brand" : {
 						"action" : "install package",
-						"pkg" : "/updates/00/publican-deathstar-0.29-latest.fc16.noarch.rpm"
+						"pkg" : "https://github.com/jwulf/deathstar-appliance-updates/blob/master/00/publican-deathstar-0.29-latest.fc16.noarch.rpm?raw=true"
 						},
 		"Update Init Script" : {
 						"action" : "copy file",
-						"src" : "/updates/00/deathstar-initscript",
+						"src" : "https://raw.github.com/jwulf/deathstar-appliance-updates/master/00/deathstar-initscript",
 						"dest" : "/etc/init.d/deathstar"
 								},
 		"Install debug command" : {
 						"action" : "copy file",
-						"src" : "/updates/00/deathstar-debug",
+						"src" : "https://raw.github.com/jwulf/deathstar-appliance-updates/master/00/deathstar-debug",
 						"dest" : "/usr/bin/deathstar-debug",
 						"perms" : "755"
 								},
