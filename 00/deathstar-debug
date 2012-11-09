@@ -1,0 +1,6 @@
+#!/bin/bash
+
+service deathstar stop
+cd /opt/deathstar-appliance
+meteor -p 80
+

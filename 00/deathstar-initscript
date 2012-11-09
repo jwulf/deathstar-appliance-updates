@@ -1,0 +1,57 @@
+#!/bin/sh
+#
+# deathstar          Start/Stop the deathstar appliance
+#
+# chkconfig: 2345 90 60
+# description: deathstar front-end and nodejs server \
+
+### BEGIN INIT INFO
+# Provides: deathstar 
+# Required-Start: $local_fs $syslog
+# Required-Stop: $local_fs $syslog
+# Default-Start:  2345
+# Default-Stop: 90
+# Short-Description: run deathstar
+# Description: deathstar appliance 
+### END INIT INFO
+
+RETVAL=0
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+[ -e /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
+
+start() {
+ cd /opt/deathstar-appliance/ 
+ meteor -p 80 &
+}
+
+stop() {
+	echo "You cannot stop the deathstar"
+	echo "...but we'll try"
+	killall node
+	killall mongod
+}
+
+restart() {
+    stop
+    start
+}
+
+case "$1" in
+    start)
+        $1
+        ;;
+    stop)
+        $1
+        ;;
+    restart)
+        $1
+        ;;
+    *)
+        echo $"Usage: $0 {start|stop|restart}"
+        exit 2
+esac
+exit $?
+

@@ -1,0 +1,84 @@
+{
+	"uuid" : "0",	
+	"description": "Initial Configuration - Public Settings",
+	"premessage": "",
+	"postmessage" : "Congratulations! You have now installed all the tools that you need for topic-based authoring and publishing. At this point there are no publicly-accessible PressGang servers, but we're working on it!",
+
+	"tasks": {
+
+		"Install Publican Death Star brand" : {
+						"action" : "install package",
+						"pkg" : "/updates/00/publican-deathstar-0.29-latest.fc16.noarch.rpm"
+						},
+		"Update Init Script" : {
+						"action" : "copy file",
+						"src" : "/updates/00/deathstar-initscript",
+						"dest" : "/etc/init.d/deathstar"
+								},
+		"Install debug command" : {
+						"action" : "copy file",
+						"src" : "/updates/00/deathstar-debug",
+						"dest" : "/usr/bin/deathstar-debug",
+						"perms" : "755"
+								},
+
+		"Set Production Server" : {
+						"action" : "data",
+						"operation" : "set",
+						"domain" : "system",
+						"key" : "productionServer",
+						"value" : ""
+				},
+		"Set Test Server" : {
+						"action" : "data",
+						"operation" : "set",
+						"domain" : "system",
+						"key" : "testServer",
+						"value" : ""
+				},
+		"Set Update Server" : {
+						"action" : "data",
+						"operation" : "set",
+						"domain" : "system",
+						"key" : "updateServer",
+						"value" : "/updates"
+				},
+		"Set BZ Request Email" : {
+						"action" : "data",
+						"operation" : "set",
+						"domain" : "system",
+						"key" : "BZ_request_email",
+						"value" : ""
+				},
+		"Set Koji Request Email" : {
+						"action" : "data",
+						"operation" : "set",
+						"domain" : "system",
+						"key" : "koji_request_email",
+						"value" : ""
+				},
+		"Set Brew Hub URL" : {
+						"action" : "data",
+						"operation" : "set",
+						"domain" : "system",
+						"key" : "koji_hub_url",
+						"value" : ""
+				}, 
+		"Set en-US Publish command" : {
+						"action" : "data",
+						"operation" : "set",
+						"domain" : "system",
+						"key" : "publish_command-en-US",
+						"value" : ""
+				},	
+		"Set default publish language to en-US" : {
+						"action" : "data",
+						"operation" : "set",
+						"domain" : "system",
+						"key" : "default_publish_lang",
+						"value" : "en-US"
+				}
+		}
+		
+}
+
