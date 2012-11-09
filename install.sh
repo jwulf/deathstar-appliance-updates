@@ -4,12 +4,13 @@
 echo
 echo =================================================================
 echo 
-echo            Death Star Virtual Appliance Installer
+echo ============ Death Star Virtual Appliance Installer =============
 echo 
 echo =================================================================
 echo 
 echo "Thank you for purchasing a Death Star Virtual Appliance." 
 echo "Our team of robot installers will now install your purchase."
+echo
 
 
 NAME="Death_Star"
@@ -32,9 +33,12 @@ fi
 
 # Download the vmimage
 # curl supports resume with "-C -" 
-echo ================Step One
+echo =================================================================
+echo =========================== Step One ============================
+echo ============================DOWNLOAD=============================
+echo =================================================================
 echo 
-echo Downloading the Death Star Virtual Appliance image
+echo Downloading the Death Star Virtual Appliance image...
 echo The image file is ~3.5GB in size, and will download from your nearest Amazon CloudFront edge location
 echo 
 
@@ -42,7 +46,11 @@ curl -C - -L -O ${VM_FILE_URL}
 
 
 # mkdir in /opt/deathstar
-echo ================Step Two
+echo
+echo =================================================================
+echo =========================== Step Two ============================
+echo ============================INSTALL==============================
+echo =================================================================
 echo
 echo "Performing installation. This may prompt for your password."
 if [ ! -z /opt/deathstar ]; then
