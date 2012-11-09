@@ -1,15 +1,18 @@
 #!/bin/bash
 # This is the plain vanilla installer file for the GA appliance
-
+echo
+echo
+echo
 echo
 echo ===========================================================================
-echo 
-echo ================= Death Star Virtual Appliance Installer ==================
-echo 
+echo ========================== Friendly Robotics ==============================
+echo ===================== Death Star Virtual Appliance  =======================
+echo ============================= Installer ===================================
 echo ===========================================================================
 echo 
 echo "Thank you for purchasing a Friendly Robotics Death Star Virtual Appliance." 
-echo "The Death Star is a friendly robotic system that will help you with all "
+echo
+echo "The Death Star is a friendly robotic system to help you with all "
 echo "your topic-based authoring needs."
 echo 
 echo "Our team of friendly robotic installers will now install your purchase."
@@ -42,10 +45,10 @@ echo ================================ Step One =================================
 echo =================================DOWNLOAD==================================
 echo ===========================================================================
 echo 
-echo Downloading the Death Star Virtual Appliance image...
-echo The image file is ~3.5GB in size, and will download from your nearest Amazon CloudFront edge location
+echo Downloading the Death Star Virtual Appliance image.
 echo 
-
+echo "It's ~3.5GB, and coming from your nearest Amazon CloudFront edge location"
+echo 
 curl -C - -L -O ${VM_FILE_URL}
 
 
