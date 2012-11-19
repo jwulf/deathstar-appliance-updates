@@ -27,10 +27,15 @@ IPADDR="192.168.200.1"
 NETWORK_NAME="deathstar"
 FQN="${NETWORK_NAME}.local"
 VM_FILE_NAME="deathstar-virtual-appliance-sda.raw"
+VM_INSTALL_DIR="/opt/deathstar"
+VM_INSTALLED="${VM_INSTALL_DIR}/${VM_FILE_NAME}"
 VM_FILE_URL="http://d1nolx37rkohbv.cloudfront.net/deathstar-virtual-appliance-sda.raw"
 
-# rpm dependencies
+# Check that rpm dependencies are installed
 # virt-manager qemu-kvm
+sudo yum install virt-manager qemu-kvm -y
+
+sudo service libvirtd start
 
 EXISTING=`virsh list --all | grep ${NAME}`
 
@@ -39,37 +44,40 @@ if [ ! -z "${EXISTING}" ]; then
   exit 1
 fi
 
-# Download the vmimage
-# curl supports resume with "-C -" 
-echo
-echo ===========================================================================
-echo ================================ Step One =================================
-echo =================================DOWNLOAD==================================
-echo ===========================================================================
-echo 
-echo Downloading the Death Star Virtual Appliance image.
-echo 
-echo "It's ~3.5GB, and coming from your nearest Amazon CloudFront edge location"
-echo 
-curl -C - -L -O ${VM_FILE_URL}
+if [ ! -f ${VM_INSTALLED} ]; then
+	echo
+	echo ===========================================================================
+	echo ================================ Step One =================================
+	echo =================================DOWNLOAD==================================
+	echo ===========================================================================
+	echo 
+	echo Downloading the Death Star Virtual Appliance image.
+	echo 
+	echo "It's ~3.5GB, and coming from your nearest Amazon CloudFront edge location"
+	echo 
+	# Download the vmimage
+	# curl supports resume with "-C -" 
+	echo "Downloading the image"
+	curl -C - -L -O ${VM_FILE_URL}
 
 
-# mkdir in /opt/deathstar
-echo
-echo ===========================================================================
-echo ================================ Step Two =================================
-echo =================================INSTALL===================================
-echo ===========================================================================
-echo
-echo "Performing installation. This may prompt for your password."
-if [ ! -z /opt/deathstar ]; then
-  sudo mkdir /opt/deathstar;
+	# mkdir in /opt/deathstar
+	echo
+	echo ===========================================================================
+	echo ================================ Step Two =================================
+	echo =================================INSTALL===================================
+	echo ===========================================================================
+	echo
+	echo "Performing installation. This may prompt for your password."
+	if [ ! -z ${VM_INSTALL_DIR} ]; then
+	  sudo mkdir ${VM_INSTALL_DIR};
+	fi
+
+	# Copy vmimage to /opt/deathstar
+	sudo mv ${VM_FILE_NAME} ${VM_INSTALL_DIR}
+	cd ${VM_INSTALL_DIR}
+
 fi
-
-
-# Copy vmimage to /opt/deathstar
-sudo mv ${VM_FILE_NAME} /opt/deathstar/
-cd /opt/deathstar
 
 # Now check if the network is already defined
 SUCCESS=0
