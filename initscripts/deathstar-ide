@@ -1,0 +1,152 @@
+#!/bin/sh
+#
+# deathstar          Start/Stop the deathstar appliance
+#
+# chkconfig: 2345 90 60
+# description: deathstar front-end and nodejs server \
+
+### BEGIN INIT INFO
+# Provides: deathstar-ide 
+# Required-Start: $local_fs $syslog
+# Required-Stop: $local_fs $syslog
+# Default-Start:  2345
+# Default-Stop: 90
+# Short-Description: run deathstar IDE
+# Description: deathstar appliance browser IDE
+### END INIT INFO
+
+RETVAL=0
+PORT=10108
+PIDFILE=/var/run/deathstar-ide.pid
+INSTALLDIR=/opt/deathstar-appliance
+IDE=/root/cloud9/bin/cloud9.sh
+IFACE=0.0.0.0
+SERVICE_STARTUP_WAIT=5
+
+source /root/nvm/nvm.sh
+
+ALL_OK=0
+STATUS_ANOMALY=5
+STATUS_COULD_NOT_COMPLY=3
+STATUS_DEAD=4
+
+# Source function library.
+#. /etc/rc.d/init.d/functions
+
+start() {
+	if [ -f $PIDFILE ]; then
+		source $PIDFILE
+		servers=0
+
+		# Gives an error when pid undefined
+		if [ x$ide_pid != "x" ] && [ "x`ps -p $ide_pid -o comm=`" = "xnode" ]; then
+		# already running
+			echo "Already running. Use restart or stop."
+			return $STATUS_COULD_NOT_COMPLY
+		fi
+
+		# If we're still here, it was a dead PID file
+		rm -f $PIDFILE
+
+	fi
+	
+	# Start the server
+	$IDE -p $PORT -l $IFACE -w $INSTALLDIR & > /dev/null 
+
+	# we launched the process asynchronously, so wait for a few seconds
+	sleep $SERVICE_STARTUP_WAIT
+
+	# Get the PID
+	ide_pid=`ps -ef|grep node|grep $PORT| awk '{print $2}'`
+
+	# Write the PID file
+	echo "ide_pid=$ide_pid" > $PIDFILE
+
+	echo "Death Star IDE service started."
+	return $ALL_OK
+}
+
+stop() {
+	if [ -f $PIDFILE ]; then
+		# We found a PID file
+
+		echo "Shutting down IDE...."
+
+		status quiet
+		# If the service is dead, skip trying to kill it
+		mystatus=$?
+		if [ $mystatus != $STATUS_DEAD ]; then		
+			source $PIDFILE
+       	       	
+			if [ "x$ide_pid" != "x" ] &&  [ "x`ps -p $ide_pid -o comm=`" = "xnode" ]; then
+				kill -TERM $ide_pid       		
+			fi
+
+			sleep 5
+			status quiet
+			mystatus=$?
+		fi
+
+		if [ $mystatus == $STATUS_DEAD ]; then
+			rm $PIDFILE
+
+			echo "Death Star IDE service stopped."
+		else
+			echo "Trying harder..."
+			stop
+		fi 
+		return $ALL_OK
+	else
+		echo "Death Star IDE service not running"
+		return $ALL_OK
+	fi
+
+}
+
+restart() {
+    stop
+    start
+}
+
+status() {
+	if [ ! -f $PIDFILE ]; then
+		echo "Death Star IDE  service not running"
+		exit 1
+	fi
+
+	source $PIDFILE		
+
+ 	if [ x$ide_pid != "x" ] && [ "x`ps -p $ide_pid -o comm=`" = "xnode" ]; then
+		msg="Death Star IDE service is up and running"
+		retval=$ALL_OK
+	else
+		msg="Subsystem locked, service dead"
+		retval=$STATUS_DEAD
+	fi
+
+	if [ "x$1" != "xquiet" ]; then
+		echo $msg
+	fi
+
+	return $retval
+
+}
+
+case "$1" in
+    start)
+        $1 
+        ;;
+    stop)
+        $1
+        ;;
+    restart)
+        $1
+        ;;
+    status)
+	$1
+	;;
+    *)
+        echo $"Usage: $0 {start|stop|restart|status}"
+        exit 2
+esac
+exit $?
