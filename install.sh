@@ -1,5 +1,43 @@
 #!/bin/bash
-# This is the plain vanilla installer file for the GA appliance
+
+# This script installs the Death Star virtual appliance from a USB key or over the network
+# script version: 0.90.1
+# license: GPL
+
+# Code:
+# Joshua Wulf jwulf@redhat.com
+# Steve Gordon sgordon@redhat.com
+
+# Testing: 
+# Mansoureh Targhi mtarghi@redhat.com
+ 
+# Currently supported OSs:
+#
+# RHEL 6
+# Fedora 16, 17
+
+# Potential for future support:
+#
+# Ubuntu with KVM
+# Mac OS X with VirtualBox
+
+############ CHANGELOG ##############
+#21 Nov 12 version 0.90.1
+#  Joshua Wulf <jwulf@redhat.com>
+#  - Moved Startup URL to variable to facilitate single sourcing of public
+#    and Red Hat internal versions of the script
+############ /CHANGELOG ##############
+
+NAME="Death_Star"
+MAC="00:16:3e:77:e2:ed"
+IPADDR="192.168.200.1"
+NETWORK_NAME="deathstar"
+FQN="${NETWORK_NAME}.local"
+VM_FILE_NAME="deathstar-virtual-appliance-sda.raw"
+VM_INSTALL_DIR="/opt/deathstar"
+VM_INSTALLED="${VM_INSTALL_DIR}/${VM_FILE_NAME}"
+VM_FILE_URL="http://d1nolx37rkohbv.cloudfront.net/deathstar-virtual-appliance-sda.raw"
+STARTUP_URL="http://www.tinyurl.com/start-deathstar"
 
 clear
 echo
@@ -19,29 +57,80 @@ echo "your topic-based authoring needs."
 echo 
 echo "Our team of friendly robotic installers will now install your purchase."
 echo
+echo
+echo ===========================================================================
+echo ================================ Step Zero ================================
+echo ================================PREPARATION================================
+echo ===========================================================================
+echo
+echo "Please stand by while we check the virtualization plumbing...."
+echo
 
+# Check that dependencies are installed
+# virt-manager qemu-kvm libvirt
 
-NAME="Death_Star"
-MAC="00:16:3e:77:e2:ed"
-IPADDR="192.168.200.1"
-NETWORK_NAME="deathstar"
-FQN="${NETWORK_NAME}.local"
-VM_FILE_NAME="deathstar-virtual-appliance-sda.raw"
-VM_INSTALL_DIR="/opt/deathstar"
-VM_INSTALLED="${VM_INSTALL_DIR}/${VM_FILE_NAME}"
-VM_FILE_URL="http://d1nolx37rkohbv.cloudfront.net/deathstar-virtual-appliance-sda.raw"
+trigger=0 # Used to trigger a module reinsertion if needed
 
-# Check that rpm dependencies are installed
-# virt-manager qemu-kvm
-sudo yum install virt-manager qemu-kvm -y
+# Check for virt-manager
+rpm -q virt-manager > /dev/null
+if [ $? == 1 ]; then
+	echo "Installing virt-manager..."
+	sudo yum install virt-manager -y --nogpgcheck --quiet
+	trigger=1
+else
+	# The possibility of a corrupted RPM DB is not handled
+	echo "Good: virt-manager already present"
+fi
 
-sudo service libvirtd start
+# Check for qemu-kvm
+rpm -q qemu-kvm > /dev/null
+if [ $? == 1 ]; then
+	echo "Installing qemu-kvm..."
+	sudo yum install qemu-kvm -y --nogpgcheck --quiet
+	trigger=1
+else
+	echo "Good: qemu-kvm already present"
+fi
 
-EXISTING=`virsh list --all | grep ${NAME}`
+# Check for libvirt
+rpm -q libvirt > /dev/null
+if [ $? == 1 ]; then
+	echo "Installing libvirt..."
+	sudo yum install libvirt -y --nogpgcheck --quiet
+	trigger=1
+else
+	echo "Good: libvirt already present"
+fi
 
+if [ trigger == 1 ]; then
+# If we installed virt packages, then
+# make sure the right udev facls are set:
+# ref: https://bugs.launchpad.net/ubuntu/+source/qemu-kvm/+bug/1057024
+	sudo modprobe -r kvm_intel
+	sudo modprobe kvm_intel
+fi
+
+# Check if the libvirt service is running; if not, start it
+SERVICE_RUNNING=0 # Exit value of "service libvirtd status" when running
+sudo service libvirtd status > /dev/null
+if [ $? -ne ${SERVICE_RUNNING} ]; then
+	sudo service libvirtd start
+fi
+
+echo
+
+# Check for the Virtual Machine 
+EXISTING=`sudo virsh list --all | grep ${NAME}`
 if [ ! -z "${EXISTING}" ]; then
   echo "The virtual machine '${NAME}' already exists in Virtual Machine Manager."
+  echo "If you want to reinstall, use Virtual Machine Manager to delete the existing machine, then retry."
   exit 1
+fi
+
+# Check if we've already copied an image locally - don't download it again!
+if [ -f ${VM_INSTALLED} ]; then
+	echo "Using the appliance found at ${VM_INSTALLED}."
+	echo "(If that's not what you wanted, delete that file and try again.)"
 fi
 
 if [ ! -f ${VM_INSTALLED} ]; then
@@ -50,36 +139,43 @@ if [ ! -f ${VM_INSTALLED} ]; then
 	echo ================================ Step One =================================
 	echo =================================DOWNLOAD==================================
 	echo ===========================================================================
-	echo 
-	echo Downloading the Death Star Virtual Appliance image.
-	echo 
-	echo "It's ~3.5GB, and coming from your nearest Amazon CloudFront edge location"
-	echo 
-	# Download the vmimage
-	# curl supports resume with "-C -" 
-	echo "Downloading the image"
-	curl -C - -L -O ${VM_FILE_URL}
-
-
-	# mkdir in /opt/deathstar
 	echo
-	echo ===========================================================================
-	echo ================================ Step Two =================================
-	echo =================================INSTALL===================================
-	echo ===========================================================================
-	echo
-	echo "Performing installation. This may prompt for your password."
-	if [ ! -z ${VM_INSTALL_DIR} ]; then
-	  sudo mkdir ${VM_INSTALL_DIR};
+	echo "Creating the download location. This may prompt for your password."
+	if [ ! -d ${VM_INSTALL_DIR} ]; then
+	  sudo mkdir ${VM_INSTALL_DIR}
 	fi
 
-	# Copy vmimage to /opt/deathstar
-	sudo mv ${VM_FILE_NAME} ${VM_INSTALL_DIR}
-	cd ${VM_INSTALL_DIR}
-
+	# Running off a USB stick; image in the current working directory
+	if [ -f ${VM_FILE_NAME} ]; then
+		echo "(I think I'm running on a USB stick here...)"
+		echo "Copying the Death Star Virtual Applicance image. Please wait, it's a 3.5GB file..."	
+		sudo cp ${VM_FILE_NAME} ${VM_INSTALL_DIR}
+	fi
+	
+	# Not running off a USB stick, download the image
+	if [ ! -f ${VM_FILE_NAME} ]; then
+		echo "Downloading the Death Star Virtual Appliance image."
+		echo 
+		echo "It's ~3.5GB, and coming from your nearest Amazon CloudFront edge location"
+		echo 
+		# Download the vmimage
+		# curl supports resume with "-C -" 
+		echo "Downloading the image"
+		curl -C - -L -O ${VM_FILE_URL}
+	fi
 fi
 
-# Now check if the network is already defined
+cd ${VM_INSTALL_DIR}
+
+echo
+echo ===========================================================================
+echo ================================ Step Two =================================
+echo =================================INSTALL===================================
+echo ===========================================================================
+echo
+echo "Performing installation. This may prompt for your password."
+
+# Check if the virtual network is already defined
 SUCCESS=0
 sudo virsh net-list > /tmp/net-list
 
@@ -89,10 +185,8 @@ grep -q "${NETWORK_NAME}" /tmp/net-list  # -q is for quiet. Shhh...
 if [ $? -ne $SUCCESS ]
 then
   # If the network wasn't found, create it 
-  # Define network example.com with only one IP available, which will be assigned to
-  # ${NAME}.example.com. This network config is what provides for the rhevm server
-  # having valid forward and reverse lookups.
-  echo "<network>
+  # Define network ${NAME}with only one IP available, which will be assigned to our appliance
+   echo "<network>
     <name>${NETWORK_NAME}</name>
     <bridge name='virbr10' />
     <forward mode='nat' />
@@ -116,7 +210,9 @@ sudo virsh net-start deathstar
 fi
 
 # Add an entry to the /etc/hosts file
-SUCCESS=0                      # All good programmers use Constants
+# This allows an address (such as "deathstar.local") to work in a web browser
+
+SUCCESS=0             
 hostline="${IPADDR} ${FQN}"
 filename=/etc/hosts
 
@@ -132,16 +228,25 @@ sudo echo "$hostline" >> "$filename"
   echo
 fi
 
-echo "Installing the Death Star to your Hypervisor"
+echo "Installing Virtual Appliance"
 echo
 # Now we install the virtual appliance
-sudo virt-install -n ${NAME} --import --disk deathstar-virtual-appliance-sda.raw --arch=i686 --os-variant=fedora17 --ram 512 --force --mac 00:16:3e:77:e2:ed --network network:${NETWORK_NAME} --autostart --noautoconsole --quiet
-echo
-echo "Warming up the lasers...."
+sudo virt-install -n ${NAME} --import --disk ${VM_INSTALLED} --arch=i686 --os-variant=fedora17 --ram 512 --force --mac 00:16:3e:77:e2:ed --network network:${NETWORK_NAME} --autostart --noautoconsole --quiet
 
-sleep 30
-echo
-echo "This battlestation is now fully operational. Open your web browser to http://tinyurl.com/start-deathstar. May the Force Be with You."
+progressmsg="Warming up the lasers...."
 
-xdg-open http://tinyurl.com/start-deathstar
+for i in {1..20}
+	do
+	echo -ne "${progressmsg}\r"
+	sleep 1	
+	progressmsg="${progressmsg}."
+	done
+echo
+
+echo "This battlestation is now fully operational. Open your web browser to ${STARTUP_URL}. May the Force Be with You."
+
+# Redirect output to /dev/null for Firefox spam bug: https://bugzilla.mozilla.org/show_bug.cgi?id=786860
+# send xdg-open to background using "&" so that the script exits
+
+xdg-open ${STARTUP_URL} > /dev/null &
 
