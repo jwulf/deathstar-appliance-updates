@@ -23,6 +23,7 @@ IDE=/root/cloud9/bin/cloud9.sh
 IFACE=0.0.0.0
 SERVICE_STARTUP_WAIT=5
 
+export HOME=/root
 source /root/nvm/nvm.sh
 
 ALL_OK=0
