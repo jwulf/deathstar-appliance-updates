@@ -1,0 +1,13 @@
+{
+	"00" : {
+			"uuid" : "00",
+			"name" : "Initial Settings",
+			"date" : "2 November 2012",
+			"description" : "This update configures the appliance to work with Red Hat internal systems, including PressGang and Brew.",
+			"mandatory" : "true",
+			"level" : "green",
+			"url" : ""
+			}
+}			
+					
+
