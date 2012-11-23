@@ -19,10 +19,7 @@
 
 SSHKEY=/root/.ssh/id_rsa
 
-if [ -f $SSHKEY ]; then
-	chkconfig deathstar-firstboot off	
-	exit
+if [ ! -f $SSHKEY ]; then
+        ssh-keygen -t rsa -N "" -f $SSHKEY -q
 fi
-
-ssh-keygen -t rsa -N "" -f $SSHKEY -q
 
