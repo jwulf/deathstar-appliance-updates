@@ -1,0 +1,234 @@
+#!/bin/sh
+#
+# deathstar          Start/Stop the deathstar appliance
+#
+# chkconfig: 2345 90 60
+# description: deathstar front-end and nodejs server \
+
+### BEGIN INIT INFO
+# Provides: deathstar-webapp 
+# Required-Start: $local_fs $syslog
+# Required-Stop: $local_fs $syslog
+# Default-Start:  2345
+# Default-Stop: 90
+# Short-Description: run deathstar web front-end
+# Description: deathstar appliance 
+### END INIT INFO
+
+# This script has an option not emitted in help:
+# service deathstar gitreset
+# will restore the application to the latest original git master
+
+RETVAL=0
+PIDFILE=/var/run/deathstar.pid
+INSTALLDIR=/opt/deathstar-appliance
+MONGOLOCK=$INSTALLDIR/.meteor/local/db/mongod.lock
+
+ALL_OK=0
+STATUS_ANOMALY=5
+STATUS_COULD_NOT_COMPLY=3
+STATUS_DEAD=4
+
+SERVICE_STARTUP_WAIT=7
+
+# Source function library.
+#. /etc/rc.d/init.d/functions
+
+bootup() {
+	if [ -f /var/run/deathstar.pid ]; then
+		source /var/run/deathstar.pid
+		servers=0
+
+		# Gives an error when pid undefined
+		if [ x$server_1_pid != "x" ] && [ "x`ps -p $server_1_pid -o comm=`" = "xnode" ]; then
+		# at least one server is running
+			echo "At least one server is running - use restart (or stop to debug)"
+			return $STATUS_COULD_NOT_COMPLY
+		fi
+
+		if [ "x$server_2_pid" != "x" ] && [ "x`ps -p $server_2_pid -o comm=`" = "xnode" ]; then
+			# the other server is running
+			echo "One server is running - use restart (or stop to debug)"
+			return $STATUS_COULD_NOT_COMPLY
+		fi
+		
+		if [ "x$mongo_pid" != "x" ] &&  [ "x`ps -p $mongo_pid -o comm=`" = "xmongod" ]; then
+			echo "The mongod process is still active - use restart (or stop to debug)"
+			return $STATUS_COULD_NOT_COMPLY	
+		fi
+
+		# If we're still here, it was a dead PID file
+		rm -f $PIDFILE
+
+		# Just in case, because this can block the server from starting
+		if [ -f $MONGOLOCK ]; then
+			rm -f $MONGOLOCK
+		fi
+	fi
+	
+	# Start the server
+ 	cd $INSTALLDIR 
+
+	if [ "$1" = "start" ]; then
+		echo "Starting the Death Star..."
+		meteor -p 80 > /dev/null &
+		# we launched the process asynchronously, so wait for a few seconds
+		sleep $SERVICE_STARTUP_WAIT
+
+		# Get the PIDs
+		server_1_pid=`ps -ef|grep meteor|grep node|grep deathstar| awk '{print $2}'`
+		server_2_pid=`ps -ef|grep meteor.js|grep node| awk '{print $2}'`
+		mongo_pid=`ps -ef|grep mongod|grep meteor| awk '{print $2}'`
+
+		# Write the PID file
+		echo "server_1_pid=$server_1_pid" > $PIDFILE
+		echo "server_2_pid=$server_2_pid" >> $PIDFILE
+		echo "mongo_pid=$mongo_pid" >> $PIDFILE	
+
+		status
+		return $?
+
+	fi
+	if [ "$1" = "debug" ]; then
+		echo "Starting the Death Star in debug mode..."
+		meteor -p 80
+	fi
+
+}
+
+stop() {
+	if [ -f $PIDFILE ]; then
+		# We found a PID file
+
+		echo "(You cannot stop the Death Star ...but we'll try....)"
+
+		status quiet
+		# If the service is dead, skip trying to kill it
+		mystatus=$?
+		if [ $mystatus != $STATUS_DEAD ]; then		
+			source $PIDFILE
+       	       	
+			if [ "x$server_1_pid" != "x" ] &&  [ "x`ps -p $server_1_pid -o comm=`" = "xnode" ]; then
+				kill -TERM $server_1_pid       		
+			fi
+
+			if [ "x$server_2_pid" != "x" ] &&  [ "x`ps -p $server_2_pid -o comm=`" = "xnode" ]; then
+				kill -TERM $server_2_pid         
+			fi
+
+			if [ "x$mongo_pid" != "x" ] && [ "x`ps -p $mongo_pid -o comm=`" = "xmongod" ]; then
+	                        kill -TERM $mongo_pid
+	                fi
+	
+			sleep 5
+			status quiet
+			mystatus=$?
+		fi
+
+		if [ $mystatus == $STATUS_DEAD ]; then
+			rm $PIDFILE
+			if [ -f $MONGOLOCK ]; then
+		 		rm $MONGOLOCK
+			fi
+
+			echo "Death Star service stopped."
+		else
+			echo "Trying harder..."
+			stop
+		fi 
+		return $ALL_OK
+	else
+		echo "Death Star service not running"
+		return $ALL_OK
+	fi
+
+}
+
+restart() {
+    stop
+    bootup start
+}
+
+status() {
+	if [ ! -f $PIDFILE ]; then
+		echo "Death Star service not running"
+		exit 1
+	fi
+
+	quorum=0
+	source $PIDFILE		
+
+ 	if [ x$server_1_pid != "x" ] && [ "x`ps -p $server_1_pid -o comm=`" = "xnode" ]; then
+		quorum=1
+    fi
+
+    if [ "x$server_2_pid" != "x" ] && [ "x`ps -p $server_2_pid -o comm=`" = "xnode" ]; then
+	quorum=$(($quorum + 1))
+    fi
+
+    if [ "x$mongo_pid" != "x" ] &&  [ "x`ps -p $mongo_pid -o comm=`" = "xmongod" ]; then
+	quorum=$((quorum + 1))
+    fi
+
+	if [ $quorum == 3 ]; then
+		msg="Death Star service is up and running"
+		retval=$ALL_OK
+	fi
+	
+	if [ $quorum == 2 ]; then 
+		msg="Two components running - is the code crashing?"
+		retval=2
+	fi
+	
+	if [ $quorum == 1 ]; then
+		msg="One component (of three) running only"
+		retval=1
+	fi
+
+	if [ $quorum == 0 ]; then
+		msg="Subsystem locked, service dead"
+		retval=$STATUS_DEAD
+	fi
+
+	if [ "x$1" != "xquiet" ]; then
+		echo $msg
+	fi
+
+	return $retval
+
+}
+
+gitreset () {
+	echo "Deleting the Death Star application and re-checking out from git..."
+	rm -rf $INSTALLDIR
+	cd /opt
+	git clone git://github.com/jwulf/deathstar-appliance.git
+	start
+}
+
+
+case "$1" in
+    start)
+        bootup $1 
+        ;;
+    debug)
+	bootup $1
+	;;
+    stop)
+        $1
+        ;;
+    restart)
+        $1
+        ;;
+    status)
+	$1
+	;;
+    recover)
+	stop
+	$1
+	;;
+    *)
+        echo $"Usage: $0 {start|stop|restart|debug|status}"
+        exit 2
+esac
+exit $?

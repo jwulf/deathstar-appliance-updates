@@ -1,219 +1,118 @@
 #!/bin/sh
 #
-# deathstar          Start/Stop the deathstar appliance
+# deathstar         Boot 
 #
 # chkconfig: 2345 90 60
-# description: deathstar front-end and nodejs server \
+# description: Death Star appliance boot strap \
 
 ### BEGIN INIT INFO
-# Provides: deathstar 
+# Provides: deathstar
 # Required-Start: $local_fs $syslog
 # Required-Stop: $local_fs $syslog
 # Default-Start:  2345
 # Default-Stop: 90
-# Short-Description: run deathstar
-# Description: deathstar appliance 
+# Short-Description: sets up a few things and starts the web app and IDE
+# Description: deathstar appliance boot strap
 ### END INIT INFO
 
-# This script has an option not emitted in help:
-# service deathstar gitreset
-# will restore the application to the latest original git master
-
-RETVAL=0
-PIDFILE=/var/run/deathstar.pid
-INSTALLDIR=/opt/deathstar-appliance
-MONGOLOCK=$INSTALLDIR/.meteor/local/db/mongod.lock
-
-ALL_OK=0
-STATUS_ANOMALY=5
-STATUS_COULD_NOT_COMPLY=3
-STATUS_DEAD=4
-
-SERVICE_STARTUP_WAIT=7
-
-# Source function library.
-#. /etc/rc.d/init.d/functions
-
-bootup() {
-	if [ -f /var/run/deathstar.pid ]; then
-		source /var/run/deathstar.pid
-		servers=0
-
-		# Gives an error when pid undefined
-		if [ x$server_1_pid != "x" ] && [ "x`ps -p $server_1_pid -o comm=`" = "xnode" ]; then
-		# at least one server is running
-			echo "At least one server is running - use restart (or stop to debug)"
-			return $STATUS_COULD_NOT_COMPLY
-		fi
-
-		if [ "x$server_2_pid" != "x" ] && [ "x`ps -p $server_2_pid -o comm=`" = "xnode" ]; then
-			# the other server is running
-			echo "One server is running - use restart (or stop to debug)"
-			return $STATUS_COULD_NOT_COMPLY
-		fi
-		
-		if [ "x$mongo_pid" != "x" ] &&  [ "x`ps -p $mongo_pid -o comm=`" = "xmongod" ]; then
-			echo "The mongod process is still active - use restart (or stop to debug)"
-			return $STATUS_COULD_NOT_COMPLY	
-		fi
-
-		# If we're still here, it was a dead PID file
-		rm -f $PIDFILE
-
-		# Just in case, because this can block the server from starting
-		if [ -f $MONGOLOCK ]; then
-			rm -f $MONGOLOCK
-		fi
-	fi
-	
-	# Start the server
- 	cd $INSTALLDIR 
-
-	if [ "$1" = "start" ]; then
-		echo "Starting the Death Star..."
-		meteor -p 80 > /dev/null &
-		# we launched the process asynchronously, so wait for a few seconds
-		sleep $SERVICE_STARTUP_WAIT
-
-		# Get the PIDs
-		server_1_pid=`ps -ef|grep meteor|grep node|grep deathstar| awk '{print $2}'`
-		server_2_pid=`ps -ef|grep meteor.js|grep node| awk '{print $2}'`
-		mongo_pid=`ps -ef|grep mongod|grep meteor| awk '{print $2}'`
-
-		# Write the PID file
-		echo "server_1_pid=$server_1_pid" > $PIDFILE
-		echo "server_2_pid=$server_2_pid" >> $PIDFILE
-		echo "mongo_pid=$mongo_pid" >> $PIDFILE	
-
-		status
-		return $?
-
-	fi
-	if [ "$1" = "debug" ]; then
-		echo "Starting the Death Star in debug mode..."
-		meteor -p 80
-	fi
-
+generateUniqueSSHKey () {
+    # If the appliance doesn't have a key pair, generate one
+    SSHKEY=/root/.ssh/id_rsa
+    if [ ! -f $SSHKEY ]; then
+            ssh-keygen -t rsa -N "" -f $SSHKEY -q
+    fi
 }
 
-stop() {
-	if [ -f $PIDFILE ]; then
-		# We found a PID file
+doOnceTasks () {
+    # Do Once Tasks - happens only once, on the first boot, or if specifically
+    # invoked by the user.
+    # We don't want these happening every time, because that would lead
+    # to unpredictable behaviour for users as changes are (un)done by this script
 
-		echo "(You cannot stop the Death Star ...but we'll try....)"
-
-		status quiet
-		# If the service is dead, skip trying to kill it
-		mystatus=$?
-		if [ $mystatus != $STATUS_DEAD ]; then		
-			source $PIDFILE
-       	       	
-			if [ "x$server_1_pid" != "x" ] &&  [ "x`ps -p $server_1_pid -o comm=`" = "xnode" ]; then
-				kill -TERM $server_1_pid       		
-			fi
-
-			if [ "x$server_2_pid" != "x" ] &&  [ "x`ps -p $server_2_pid -o comm=`" = "xnode" ]; then
-				kill -TERM $server_2_pid         
-			fi
-
-			if [ "x$mongo_pid" != "x" ] && [ "x`ps -p $mongo_pid -o comm=`" = "xmongod" ]; then
-	                        kill -TERM $mongo_pid
-	                fi
-	
-			sleep 5
-			status quiet
-			mystatus=$?
-		fi
-
-		if [ $mystatus == $STATUS_DEAD ]; then
-			rm $PIDFILE
-			if [ -f $MONGOLOCK ]; then
-		 		rm $MONGOLOCK
-			fi
-
-			echo "Death Star service stopped."
-		else
-			echo "Trying harder..."
-			stop
-		fi 
-		return $ALL_OK
-	else
-		echo "Death Star service not running"
-		return $ALL_OK
-	fi
-
+    doVBoxOnMacNetworkSetup
+    doGitPull
+ 
 }
 
-restart() {
-    stop
-    start
+doVBoxOnMacNetworkSetup () {
+
+   # Check if I'm running on Mac OS X under VirtualBox
+    # We look for the DHCP-assigned address for a VirtualBox Host-only network
+    
+    VBox=`ifconfig eth0 | grep "192.168.56" | wc -l`
+    
+    # If we are under VirtualBox, we'll switch to static IP addressing on
+    # the host-only network, but under the DHCP range
+    
+    if [ $VBox = 1 ]; then
+        echo "DEVICE=eth0
+BOOTPROTO=static
+IPADDR=192.168.56.25
+NETMASK=255.255.255.0
+ONBOOT=on" > /etc/sysconfig/network-scripts/ifcfg-eth0
+
+        # and restart the network with the new address...    
+        service network restart
+    fi
 }
 
-status() {
-	if [ ! -f $PIDFILE ]; then
-		echo "Death Star service not running"
-		exit 1
-	fi
-
-	quorum=0
-	source $PIDFILE		
-
- 	if [ x$server_1_pid != "x" ] && [ "x`ps -p $server_1_pid -o comm=`" = "xnode" ]; then
-		quorum=1
-        fi
-
-        if [ "x$server_2_pid" != "x" ] && [ "x`ps -p $server_2_pid -o comm=`" = "xnode" ]; then
-		quorum=$(($quorum + 1))
-        fi
-
-        if [ "x$mongo_pid" != "x" ] &&  [ "x`ps -p $mongo_pid -o comm=`" = "xmongod" ]; then
-		quorum=$((quorum + 1))
-        fi
-
-	if [ $quorum == 3 ]; then
-		msg="Death Star service is up and running"
-		retval=$ALL_OK
-	fi
-	
-	if [ $quorum == 2 ]; then 
-		msg="Two components running - is the code crashing?"
-		retval=2
-	fi
-	
-	if [ $quorum == 1 ]; then
-		msg="One component (of three) running only"
-		retval=1
-	fi
-
-	if [ $quorum == 0 ]; then
-		msg="Subsystem locked, service dead"
-		retval=$STATUS_DEAD
-	fi
-
-	if [ "x$1" != "xquiet" ]; then
-		echo $msg
-	fi
-
-	return $retval
-
+doGitPull () {
+    # Update the installed web app to the latest version before launching
+    cd /opt/deathstar-appliance
+    git pull
 }
 
-gitreset () {
-	echo "Deleting the Death Star application and re-checking out from git..."
-	rm -rf $INSTALLDIR
-	cd /opt
-	git clone git://github.com/jwulf/deathstar-appliance.git
-	start
+doFirstBootUpdate () {
+    # Here we pull the latest update for this machine
+    # This means that we don't have to keep uploading new images
+    # we can use the same image, and push the delta updates out via this mechanism
 }
 
+start () {
+    generateUniqueSSHKey
+
+    # Tasks that should only be done once
+
+    DO_ONCE=0
+
+    if [ -f /opt/deathstar-appliance/.doOnce -o $1 = "firstboot" ]; then
+        DO_ONCE=1
+        doOnceTasks
+        rm /opt/deathstar-appliance/.doOnce
+    fi
+
+    # Start the Death Star web application
+    service deathstar-webapp start
+
+    # The first boot update relies on the web app, so we needed to
+    # wait for it to start before proceeding
+    if [ $DO_ONCE = 1 ]; then
+        doFirstBootUpdate
+    fi
+
+    # Now start the IDE
+    service deathstar-ide start
+}
+
+status () {
+    service deathstar-webapp status
+    service deathstar-ide status
+}
+
+stop () {
+    service deathstar-webapp stop
+    service deathstar-ide stop
+}
+
+restart () {
+    service deathstar-webapp restart
+    service deathstar-ide restart
+}
 
 case "$1" in
     start)
-        bootup $1 
+        $1 
         ;;
-    debug)
-	bootup $1
-	;;
     stop)
         $1
         ;;
@@ -221,14 +120,13 @@ case "$1" in
         $1
         ;;
     status)
-	$1
-	;;
-    recover)
-	stop
-	$1
-	;;
+    	$1
+    	;;
+    firstboot)
+        start $1
+        ;;
     *)
-        echo $"Usage: $0 {start|stop|restart|debug|status}"
+        echo $"Usage: $0 {start|stop|restart|status|firstboot}"
         exit 2
 esac
 exit $?
