@@ -17,9 +17,10 @@
 # Fedora 16, 17
 # Mac OS X with VirtualBox
 
-# Potential for future support:
+# Future support:
 #
-# Ubuntu with KVM
+# Ubuntu with KVM - partially completed
+# Windows with VirtualBox - will require a different installer
 
 ############ CHANGELOG ##############
 # 21 Nov 12 
@@ -35,33 +36,42 @@
 #
 # version 0.91
 #  Joshua Wulf <jwulf@redhat.com>
-#  - Added support for Mac OS X and Virtual Box
+#  - Added support for Mac OS X with Oracle VirtualBox
 #
 ############ /CHANGELOG ##############
 
 UNAME=`uname`
 
 if [ "$UNAME" != "Linux" -a "$UNAME" != "Darwin" ] ; then
-    echo "Sorry, this OS is not supported yet."
+    echo "Sorry, this OS is not supported yet. If you want to write an installer, fork www.github.com/jwulf/deathstar-appliance-updates."
     exit 1
 fi
-
 
 setCommonSettings () {
     VM_FILE_URL="http://d1nolx37rkohbv.cloudfront.net/deathstar-virtual-appliance-sda.raw"
     STARTUP_URL="http://www.tinyurl.com/start-deathstar"
-    VM_INSTALL_DIR="/opt/deathstar"
     VM_FILE_NAME="deathstar-virtual-appliance-sda.raw"
     NETWORK_NAME="deathstar"
     FQN="${NETWORK_NAME}.local"
 }
 
+dontRunWithRoot () {    
+    if [ `whoami` = 'root' ] ; then    
+        echo "Please don't run this as root. I need to create the appliance in your user account."
+        echo "The installer will request sudo when it needs it"
+        exit 1
+    fi
+}
+    
+    
 setKVMSettings () {
     # Used on RHEL / Fedora / Ubuntu    
     NAME="Death_Star"
     MAC="00:16:3e:77:e2:ed"
     IPADDR="192.168.200.1"
+    VM_INSTALL_DIR="/opt/deathstar"
     VM_INSTALLED="${VM_INSTALL_DIR}/${VM_FILE_NAME}"
+    KVMSUDO="sudo"
 }
 
 setVirtualBoxSettings () {
@@ -69,8 +79,10 @@ setVirtualBoxSettings () {
     APPLIANCE_NAME="Death Star Appliance"
     VM_RAW_FILE=$VM_FILE_NAME
     VM_VDI_NAME="deathstar-appliance-sda.vdi"  
+    VM_INSTALL_DIR="${HOME}/appliance"
     VM_INSTALLED="${VM_INSTALL_DIR}/${VM_VDI_NAME}"
     IPADDR="192.168.56.25"
+    KVMSUDO=""
 }
 
 introMsg () {
@@ -102,7 +114,7 @@ introMsg () {
     echo    
 }
 
-checkPrereqsMacOS () {
+checkPreReqsMacOS () {
     VBOXPRESENCE="/usr/bin/VBoxManage"
     
     echo "Mac OS X system detected."
@@ -116,45 +128,26 @@ checkPrereqsMacOS () {
     fi
 }
 
-checkPrereqsRedHat () {
+checkPreReqsRedHat () {
     echo "Red Hat / Fedora operating system detected."
     echo
     # Check that dependencies are installed
-    # virt-manager qemu-kvm libvirt
 
     trigger=0 # Used to trigger a module reinsertion if needed
     
-    # Check for virt-manager
-    rpm -q virt-manager > /dev/null
-    if [ $? == 1 ]; then
-        echo "Installing virt-manager..."
-        sudo yum install virt-manager -y --nogpgcheck --quiet
-    	trigger=1
-    else
-    	# The possibility of a corrupted RPM DB is not handled
-    	echo "Good: virt-manager already present"
-    fi
-    
-    # Check for qemu-kvm
-    rpm -q qemu-kvm > /dev/null
-    if [ $? == 1 ]; then
-    	echo "Installing qemu-kvm..."
-    	sudo yum install qemu-kvm -y --nogpgcheck --quiet
-    	trigger=1
-    else
-    	echo "Good: qemu-kvm already present"
-    fi
-    
-    # Check for libvirt
-    rpm -q libvirt > /dev/null
-    if [ $? == 1 ]; then
-    	echo "Installing libvirt..."
-    	sudo yum install libvirt -y --nogpgcheck --quiet
-    	trigger=1
-    else
-    	echo "Good: libvirt already present"
-    fi
-    
+    for dependency in "virt-manager" "qemu-kvm" "libvirt"; do
+
+        rpm -q $dependency > /dev/null
+        if [ $? == 1 ]; then
+            echo "Installing $dependency..."
+            sudo yum install $dependency -y --nogpgcheck --quiet
+        	trigger=1
+        else
+        	# The possibility of a corrupted RPM DB is not handled
+        	echo "Good: $dependency already present"
+        fi
+    done    
+        
     if [ trigger == 1 ]; then
     # If we installed virt packages, then
     # make sure the right udev facls are set:
@@ -171,19 +164,24 @@ checkPrereqsRedHat () {
     fi  
 }
 
-checkVMAlreadyExistsKVM () {
+checkIfVMAlreadyExistsKVM () {
     # Check for the Virtual Machine 
     EXISTING=`sudo virsh list --all | grep ${NAME}`
     if [ ! -z "${EXISTING}" ]; then
+        echo
         echo "The virtual machine '${NAME}' already exists in Virtual Machine Manager."
         echo "If you want to reinstall, use Virtual Machine Manager to delete the existing machine, then retry."
         exit 1
     fi
 }
 
-checkVMAlreadyExistsVirtualBox () {
-    VBoxManage showvminfo $APPLIANCE_NAME > /dev/null
-    if [ $? = 0 ]; then
+checkIfVMAlreadyExistsVirtualBox () {
+    VM_EXISTS=0;
+    
+    VBoxManage showvminfo "$APPLIANCE_NAME" 1> /dev/null 2>/dev/null
+
+    if [ $? -eq $VM_EXISTS ]; then
+        echo
         echo "The virtual machine '${APPLIANCE_NAME}' already exists in VirtualBox."
         echo "If you want to reinstall, delete the VM and its associated storage files, then retry"
         exit 1
@@ -206,14 +204,14 @@ getVMImage () {
     	echo
     	echo "Creating the download location. This may prompt for your password."
     	if [ ! -d ${VM_INSTALL_DIR} ]; then
-    	  sudo mkdir ${VM_INSTALL_DIR}
+    	  $KVMSUDO mkdir ${VM_INSTALL_DIR}
     	fi
     
     	# Running off a USB stick; image in the current working directory
     	if [ -f ${VM_FILE_NAME} ]; then
-    		echo "(I think I'm running on a USB stick here...)"
+    		echo "(I think I'm running from a USB stick here...)"
     		echo "Copying the Death Star Virtual Applicance image. Please wait, it's a 3.5GB file..."	
-    		sudo cp ${VM_FILE_NAME} ${VM_INSTALL_DIR}
+    		$KVMSUDO cp ${VM_FILE_NAME} ${VM_INSTALL_DIR}
     	fi
     	
     	# Not running off a USB stick, download the image
@@ -312,20 +310,24 @@ installVM_KVM () {
 
 installVM_VirtualBox () {
     # Create and configure the VirtualBox VM
-    VBoxManage createvm --name $APPLIANCE_NAME --ostype "RedHat" --register
-    VBoxManage modifyvm $APPLIANCE_NAME --memory "512"
-    VBoxManage storagectl $APPLIANCE_NAME --add sata --bootable on --name "SATA"
-    VBoxManage storageattach $APPLIANCE_NAME --storagectl "SATA" --port 0 --device 0 --type hdd --medium $VM_INSTALLED
-    VBoxManage modifyvm $APPLIANCE_NAME --nic1 hostonly
+    VBoxManage createvm --name "${APPLIANCE_NAME}" --ostype "RedHat" --register
+    VBoxManage modifyvm "${APPLIANCE_NAME}" --memory "512"
+    VBoxManage storagectl "${APPLIANCE_NAME}" --add sata --bootable on --name "SATA"
+    VBoxManage storageattach "${APPLIANCE_NAME}" --storagectl "SATA" --port 0 --device 0 --type hdd --medium $VM_INSTALLED
+    VBoxManage modifyvm "${APPLIANCE_NAME}" --nic1 hostonly 
+    VBoxManage modifyvm "${APPLIANCE_NAME}" --hostonlyadapter1 "vboxnet0"
+    VBoxManage modifyvm "${APPLIANCE_NAME}" --autostart-enabled on
     
     # Start the VM
-    VBoxHeadless --startvm "Death Star Appliance" 
+    VBoxManage startvm "${APPLIANCE_NAME}" &
 }
 
 convertRAW2VDI () {
-    echo "Converting image to VirtualBox format..."
-    sudo VBoxMange convertfromraw $VM_RAW_FILE $VM_INSTALLED --format VDI    
-
+    if [ ! -f $VM_INSTALLED ]; then
+        echo "Converting image to VirtualBox format..."
+        VBoxManage convertfromraw $VM_RAW_FILE $VM_INSTALLED --format VDI    
+    fi 
+    
     # Leave this commented for troubleshooting - can do multiple runs with the
     # same image
 #    if [ -f $VM_INSTALLED ]; then
@@ -347,6 +349,13 @@ warmupMsg () {
     echo "This battlestation is now fully operational. Open your web browser to ${STARTUP_URL}. May the Force Be with You."
 }
 
+continueOnlyIfDiskImageExists () {
+       if [ ! -f $VM_INSTALLED ]; then
+            echo "Something went wrong - I can't find the image at $VM_INSTALLED."
+            exit 1
+        fi
+}
+
 openURL_Linux () {
     # Redirect output to /dev/null for Firefox spam bug: https://bugzilla.mozilla.org/show_bug.cgi?id=786860
     # send xdg-open to background using "&" so that the script exits
@@ -358,17 +367,22 @@ openURL_Linux () {
 if [ "$UNAME" = "Darwin" ] ; then
     ### OSX ###
     
+    dontRunWithRoot
+    
     setCommonSettings
     setVirtualBoxSettings
 
     introMsg
     checkPreReqsMacOS
-    checkVMAlreadyExistsVirtualBox
+    checkIfVMAlreadyExistsVirtualBox
 
     getVMImage
     
     installMsg
     convertRAW2VDI
+    
+    continueOnlyIfDiskImageExists
+    
     createHostsEntry
     installVM_VirtualBox
     
@@ -390,9 +404,11 @@ elif [ "$UNAME" = "Linux" ] ; then
         
         introMsg
         checkPreReqsRedHat
-        checkVMAlreadyExistsKVM
+        checkIfVMAlreadyExistsKVM
         
         getVMImage
+        
+        continueOnlyIfDiskImageExists
         
         installMsg
         createNetworkKVM
