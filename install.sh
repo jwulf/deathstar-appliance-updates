@@ -181,6 +181,9 @@ sudo virsh net-list > /tmp/net-list
 
 grep -q "${NETWORK_NAME}" /tmp/net-list  # -q is for quiet. Shhh...
 
+# Clean up
+sudo rm /tmp/net-list
+
 # Grep's return error code can then be checked. No error=success
 if [ $? -ne $SUCCESS ]
 then
@@ -204,9 +207,12 @@ then
     </ip>
   </network>" > /tmp/deathstar-network.xml
 
-sudo virsh net-define /tmp/deathstar-network.xml
-sudo virsh net-autostart deathstar
-sudo virsh net-start deathstar
+    sudo virsh net-define /tmp/deathstar-network.xml
+    sudo virsh net-autostart deathstar
+    sudo virsh net-start deathstar
+    
+    # cleanup 
+    rm /tmp/deathstar-network.xml
 fi
 
 # Add an entry to the /etc/hosts file
