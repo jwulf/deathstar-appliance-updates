@@ -388,6 +388,9 @@ if [ "$UNAME" = "Darwin" ] ; then
     
     warmupMsg
     #openURL_Mac
+    # To do: install service
+    # http://mikkel.hoegh.org/blog/2010/12/23/run-virtualbox-boot-mac-os-x/
+    # http://developer.apple.com/library/mac/#documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html
     
 elif [ "$UNAME" = "Linux" ] ; then
     ### Linux - thus KVM ###
