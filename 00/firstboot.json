@@ -1,0 +1,11 @@
+{
+    "uuid" : "00",	
+	"description": "First Boot Update allows us to patch the image on its first boot.",
+	"premessage": "",
+	"postmessage" : "You shouldn't see this message :-)",
+	"tasks": {
+		
+		}
+		
+}
+
