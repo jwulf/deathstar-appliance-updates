@@ -72,6 +72,9 @@ setKVMSettings () {
     VM_INSTALL_DIR="/opt/deathstar"
     VM_INSTALLED="${VM_INSTALL_DIR}/${VM_FILE_NAME}"
     KVMSUDO="sudo"
+    PKG_NOT_INSTALLED=1
+    UBUNTU_SERVICE=libvirt-bin
+    REDHAT_SERVICE=libvirtd
 }
 
 setVirtualBoxSettings () {
@@ -138,7 +141,7 @@ checkPreReqsRedHat () {
     for dependency in "virt-manager" "qemu-kvm" "libvirt"; do
 
         rpm -q $dependency > /dev/null
-        if [ $? == 1 ]; then
+        if [ $? == $PKG_NOT_INSTALLED ]; then
             echo "Installing $dependency..."
             sudo yum install $dependency -y --nogpgcheck --quiet
         	trigger=1
@@ -152,8 +155,8 @@ checkPreReqsRedHat () {
     # If we installed virt packages, then
     # make sure the right udev facls are set:
     # ref: https://bugs.launchpad.net/ubuntu/+source/qemu-kvm/+bug/1057024
-    	sudo modprobe -r kvm_intel
-    	sudo modprobe kvm_intel
+        sudo rmmod kvm_intel kvm
+        sudo modprobe kvm_intel
     fi
     
     # Check if the libvirt service is running; if not, start it
@@ -163,6 +166,45 @@ checkPreReqsRedHat () {
     	sudo service libvirtd start
     fi  
 }
+
+checkPreReqsUbuntu () {
+    echo "Debian / Ubuntu operating system detected."
+    echo 
+
+  # Check that dependencies are installed
+
+    trigger=0 # Used to trigger a module reinsertion if needed
+    
+    for dependency in "virt-manager" "virtinst" "bridge-utils" "virt-viewer" "qemu-kvm"; do
+
+        dpkg -s $dependency 1> /dev/null 2> /dev/null
+        if [ $? = $PKG_NOT_INSTALLED ]; then
+            echo "Installing $dependency..."
+            sudo apt-get install $dependency -y  -qq
+            trigger=1
+        else
+        	echo "Good: $dependency already present"
+        fi
+    done    
+        
+    if [ trigger = 1 ]; then
+    # If we installed virt packages, then
+    # make sure the right udev facls are set:
+    # ref: https://bugs.launchpad.net/ubuntu/+source/qemu-kvm/+bug/1057024
+    	sudo modprobe -r kvm_intel
+    	sudo modprobe kvm_intel
+    fi
+    
+    # Check if the libvirt service is running; if not, start it
+    SERVICE_RUNNING=0 # Exit value of "service libvirtd status" when running
+    sudo service libvirt-bin status > /dev/null
+    if [ $? -ne ${SERVICE_RUNNING} ]; then
+    	sudo service libvirt-bin start
+    fi  
+    
+
+}
+
 
 checkIfVMAlreadyExistsKVM () {
     # Check for the Virtual Machine 
@@ -210,7 +252,7 @@ getVMImage () {
     	# Running off a USB stick; image in the current working directory
     	if [ -f ${VM_FILE_NAME} ]; then
     		echo "(I think I'm running from a USB stick here...)"
-    		echo "Copying the Death Star Virtual Applicance image. Please wait, it's a 3.5GB file..."	
+    		echo "Copying the Death Star Virtual Appliance image. Please wait, it's a 3.5GB file..."	
     		$KVMSUDO cp ${VM_FILE_NAME} ${VM_INSTALL_DIR}
     	fi
     	
@@ -245,9 +287,6 @@ createNetworkKVM () {
     
     grep -q "${NETWORK_NAME}" /tmp/net-list  # -q is for quiet. Shhh...
     
-    # Clean up
-    sudo rm /tmp/net-list
-    
     # Grep's return error code can then be checked. No error=success
     if [ $? -ne $SUCCESS ]
     then
@@ -277,6 +316,7 @@ createNetworkKVM () {
         
         # cleanup 
         rm /tmp/deathstar-network.xml
+        sudo rm /tmp/net-list
     fi
 }
 
@@ -338,7 +378,7 @@ convertRAW2VDI () {
 warmupMsg () {
     progressmsg="Warming up the lasers...."
 
-    for i in {1..20}
+    for i in {1..30}
         do
     	echo -ne "${progressmsg}\r"
     	sleep 1	
@@ -397,8 +437,26 @@ elif [ "$UNAME" = "Linux" ] ; then
 
     if [ -f "/etc/debian_version" ] ; then
         ## Debian / Ubuntu ##
-        echo "Debian-based distro not supported by install script yet"
-        exit 1
+
+        setCommonSettings   
+        setKVMSettings
+        
+        introMsg
+        checkPreReqsUbuntu
+        checkIfVMAlreadyExistsKVM
+        
+        getVMImage
+        
+        continueOnlyIfDiskImageExists
+        
+        installMsg
+        createNetworkKVM
+        createHostsEntry
+        installVM_KVM
+        
+        warmupMsg
+        openURL_Linux
+        
     elif [ -f /etc/redhat-release -o -x /bin/rpm ] ; then
         ## Red Hat / Fedora ##
 
@@ -419,7 +477,7 @@ elif [ "$UNAME" = "Linux" ] ; then
         installVM_KVM
         
         warmupMsg
-        OpenURL_Linux
+        openURL_Linux
     fi
 fi
  
