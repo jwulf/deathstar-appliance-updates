@@ -51,7 +51,11 @@ start() {
 
 	fi
 	
-	# Start the server
+    echo
+    echo "Starting Death Star IDE service"
+    echo
+	
+    # Start the server
 	$IDE -p $PORT -l $IFACE -w $INSTALLDIR & > /dev/null 
 
 	# we launched the process asynchronously, so wait for a few seconds

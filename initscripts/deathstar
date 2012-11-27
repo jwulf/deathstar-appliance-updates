@@ -15,6 +15,9 @@
 # Description: deathstar appliance boot strap
 ### END INIT INFO
 
+FIRST_BOOT_UPDATE_URL=http://127.0.0.1/initialize?from=http://raw.github.com/jwulf/deathstar-appliance-updates/master/00/firstboot.json
+
+
 generateUniqueSSHKey () {
     # If the appliance doesn't have a key pair, generate one
     SSHKEY=/root/.ssh/id_rsa
@@ -66,6 +69,8 @@ doFirstBootUpdate () {
     # Here we pull the latest update for this machine
     # This means that we don't have to keep uploading new images
     # we can use the same image, and push the delta updates out via this mechanism
+
+    curl -L $FIRST_BOOT_UPDATE_URL
 }
 
 start () {
@@ -75,7 +80,7 @@ start () {
 
     DO_ONCE=0
 
-    if [ -f /opt/deathstar-appliance/.doOnce -o $1 = "firstboot" ]; then
+    if     if [ -f /opt/deathstar-appliance/.doOnce ] || [ "$1" = "firstboot" ]; then
         DO_ONCE=1
         doOnceTasks
         rm /opt/deathstar-appliance/.doOnce
