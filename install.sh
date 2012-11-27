@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # This script installs the Death Star virtual appliance from a USB key or over the network
-# script version: 0.90.1
+# script version: 0.92
 # license: GPL
 
 # Code:
@@ -15,11 +15,11 @@
 #
 # RHEL 6
 # Fedora 16, 17
+# Ubuntu with KVM
 # Mac OS X with VirtualBox
 
 # Future support:
 #
-# Ubuntu with KVM - partially completed
 # Windows with VirtualBox - will require a different installer
 
 ############ CHANGELOG ##############
@@ -37,6 +37,10 @@
 # version 0.91
 #  Joshua Wulf <jwulf@redhat.com>
 #  - Added support for Mac OS X with Oracle VirtualBox
+#
+# versin 0.92
+#  Joshua Wulf
+#  - Added support for Ubuntu with KVM
 #
 ############ /CHANGELOG ##############
 
