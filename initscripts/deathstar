@@ -93,7 +93,7 @@ start () {
 
     DO_ONCE=0
 
-    if     if [ -f /opt/deathstar-appliance/.doOnce ] || [ "$1" = "firstboot" ]; then
+    if [ -f /opt/deathstar-appliance/.doOnce ] || [ "$1" = "firstboot" ]; then
         DO_ONCE=1
         doOnceTasks
         rm /opt/deathstar-appliance/.doOnce
