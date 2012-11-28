@@ -39,22 +39,35 @@ doOnceTasks () {
 
 doVBoxOnMacNetworkSetup () {
 
-   # Check if I'm running on Mac OS X under VirtualBox
+    # Under VirtualBox we need two adapters - a host-only one with a static
+    # IP for communication with the host, and a NAT one with a dynamic IP
+    # to communicate with the world (update servers, PressGang, etc)
+
+    VIRTUALBOX_DHCP=192.168.56
+    VIRTUALBOX_DHCP_IP_DETECTED=1
+
+    # Check if I'm running on Mac OS X under VirtualBox
     # We look for the DHCP-assigned address for a VirtualBox Host-only network
     
-    VBox=`ifconfig eth0 | grep "192.168.56" | wc -l`
+    IP_ADDRESS=`ifconfig eth0 | grep "$VIRTUALBOX_DHCP" | wc -l`
     
     # If we are under VirtualBox, we'll switch to static IP addressing on
-    # the host-only network, but under the DHCP range
+    # the host-only network, with a static IP under the DHCP range
     
-    if [ $VBox = 1 ]; then
+    if [ $IP_ADDRESS = $VIRTUALBOX_DHCP_IP_DETECTED ]; then
         echo "DEVICE=eth0
 BOOTPROTO=static
 IPADDR=192.168.56.25
 NETMASK=255.255.255.0
 ONBOOT=on" > /etc/sysconfig/network-scripts/ifcfg-eth0
 
-        # and restart the network with the new address...    
+    # and create a second adapter for the NAT network
+
+        echo "DEVICE=eth1
+BOOTPROTO=dhcp
+ONBOOT=on" > /etc/sysconfig/network-scripts/ifcfg-eth1
+
+        # and restart the network with the new adapters...    
         service network restart
     fi
 }

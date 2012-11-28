@@ -198,7 +198,7 @@ status() {
 
 }
 
-gitreset () {
+reset () {
 	echo "Deleting the Death Star application and re-checking out from git..."
 	rm -rf $INSTALLDIR
 	cd /opt
@@ -223,7 +223,7 @@ case "$1" in
     status)
 	$1
 	;;
-    recover)
+    reset)
 	stop
 	$1
 	;;
