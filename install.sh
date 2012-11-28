@@ -45,7 +45,6 @@
 # version 0.93
 #  Joshua Wulf <jwulf@redhat.com>
 #  - VM Image is now tar gzipped - it will be decompressed after download
-#  - Added HW addresses for Virtual Box NICs
 #
 ############ /CHANGELOG ##############
 
@@ -76,7 +75,7 @@ setKVMSettings () {
     PKG_NOT_INSTALLED=1
     UBUNTU_SERVICE=libvirt-bin
     REDHAT_SERVICE=libvirtd
-    GET_PERMISSIONS_OF="st_mode=`stat -c %a`"
+    GET_HOSTS_FILE_PERMS="st_mode=`stat -c %a /etc/hosts`"
 }
 
 setVirtualBoxSettings () {
@@ -88,7 +87,7 @@ setVirtualBoxSettings () {
     VM_INSTALLED="${VM_INSTALL_DIR}/${VM_VDI_NAME}"
     IPADDR="192.168.56.25"
     KVMSUDO=""
-    GET_PERMISSIONS_OF="eval `stat -s`"
+    GET_HOSTS_FILE_PERMS="eval `stat -s /etc/hosts`"
 }
 
 dontRunWithRoot () {    
@@ -393,8 +392,8 @@ createHostsEntry () {
         # This is a bit of a hack. 'sudo echo "something" >> /etc/hosts' does not work. So if we don't have root
         # then we get the perms of /etc/hosts, use sudo to make it writable for the current user
         # update it, then restore perms.
-        if [ whoami != 'root' ]; then
-            $GET_PERMISSIONS_OF $HOSTS_FILE
+        if [ ! `whoami` = "root" ]; then
+            $GET_HOSTS_FILE_PERMS
             sudo chmod 777 $HOSTS_FILE
             echo "$hostline" >> "$HOSTS_FILE"
             sudo chmod $st_mode $HOSTS_FILE
