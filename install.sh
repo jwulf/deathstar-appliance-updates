@@ -258,7 +258,7 @@ getVMImage () {
     	fi
     
     	# Running off a USB stick; image in the current working directory
-    	if [ -f ${VM_FILE_NAME} ]; then
+    	if [ -f ${VM_ZIP_FILE} ]; then
     		echo "(I think I'm running from a USB stick here...)"
     		echo "Copying the Death Star Virtual Appliance image. Please wait, it's a 1.2GB file..."	
     		$KVMSUDO cp ${VM_ZIP_FILE} ${VM_INSTALL_DIR}
