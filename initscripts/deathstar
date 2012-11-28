@@ -59,7 +59,7 @@ doVBoxOnMacNetworkSetup () {
 BOOTPROTO=static
 IPADDR=192.168.56.25
 NETMASK=255.255.255.0
-HWADDR=00:02:B3:F7:FE:2A
+HWADDR=3a:8f:11:a5:17:2b
 ONBOOT=on" > /etc/sysconfig/network-scripts/ifcfg-eth0
 
     # and create a second adapter for the NAT network
