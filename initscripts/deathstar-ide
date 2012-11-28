@@ -19,12 +19,13 @@ RETVAL=0
 PORT=10108
 PIDFILE=/var/run/deathstar-ide.pid
 INSTALLDIR=/opt/deathstar-appliance
-IDE=/root/cloud9/bin/cloud9.sh
+IDE=/opt/cloud9/bin/cloud9.sh
+NVM=/opt/nvm/nvm.sh
 IFACE=0.0.0.0
 SERVICE_STARTUP_WAIT=5
 
 export HOME=/root
-source /root/nvm/nvm.sh
+source $NVM
 
 ALL_OK=0
 STATUS_ANOMALY=5
