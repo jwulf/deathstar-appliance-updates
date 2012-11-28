@@ -70,7 +70,7 @@ start() {
  	cd $INSTALLDIR 
 
 	if [ "x$1" = "x" ]; then
-		echo "Starting the Death Star..."
+		echo "Starting the Death Star Web Application service..."
 		meteor -p 80 > /dev/null &
 		# we launched the process asynchronously, so wait for a few seconds
 		sleep $SERVICE_STARTUP_WAIT
@@ -90,7 +90,7 @@ start() {
 
 	fi
 	if [ "$1" = "debug" ]; then
-		echo "Starting the Death Star in debug mode..."
+		echo "Starting the Death Star Web Application in debug mode..."
 		meteor -p 80
 	fi
 
@@ -131,14 +131,14 @@ stop() {
 		 		rm $MONGOLOCK
 			fi
 
-			echo "Death Star service stopped."
+			echo "Death Star Web Application service stopped."
 		else
 			echo "Trying harder..."
 			stop
 		fi 
 		return $ALL_OK
 	else
-		echo "Death Star service not running"
+		echo "Death Star Web Application service not running"
 		return $ALL_OK
 	fi
 
@@ -151,7 +151,7 @@ restart() {
 
 status() {
 	if [ ! -f $PIDFILE ]; then
-		echo "Death Star service not running"
+		echo "Death Star Web Application service not running"
 		exit 1
 	fi
 
@@ -171,7 +171,7 @@ status() {
     fi
 
 	if [ $quorum == 3 ]; then
-		msg="Death Star service is up and running"
+		msg="Death Star Web Application service is up and running"
 		retval=$ALL_OK
 	fi
 	
@@ -200,7 +200,7 @@ status() {
 
 reset () {
     stop
-	echo "Deleting the Death Star application and re-checking out from git..."
+	echo "Deleting the Death Star Web Application and re-checking out from Git..."
 	rm -rf $INSTALLDIR
 	cd /opt
 	git clone git://github.com/jwulf/deathstar-appliance.git
