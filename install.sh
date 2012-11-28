@@ -75,6 +75,7 @@ setKVMSettings () {
     PKG_NOT_INSTALLED=1
     UBUNTU_SERVICE=libvirt-bin
     REDHAT_SERVICE=libvirtd
+    GET_PERMISSIONS_OF="st_mode=`stat -c %a`"
 }
 
 setVirtualBoxSettings () {
@@ -86,6 +87,7 @@ setVirtualBoxSettings () {
     VM_INSTALLED="${VM_INSTALL_DIR}/${VM_VDI_NAME}"
     IPADDR="192.168.56.25"
     KVMSUDO=""
+    GET_PERMISSIONS_OF="eval `stat -s`"
 }
 
 dontRunWithRoot () {    
@@ -152,7 +154,7 @@ checkPreReqsRedHat () {
         if [ $? == $PKG_NOT_INSTALLED ]; then
             echo "Installing $dependency..."
             sudo yum install $dependency -y --nogpgcheck --quiet
-        	trigger=1
+            trigger=1
         else
         	# The possibility of a corrupted RPM DB is not handled
         	echo "Good: $dependency already present"
@@ -237,52 +239,84 @@ checkIfVMAlreadyExistsVirtualBox () {
         exit 1
     fi
 }
+
+actionMsg () {
+
+    # Display a message, and append an advisory that it may require a password, when applicable
+
+    if [ "x$KVM_SUDO" = "x" ] || [ "$2" = "TRUE" ]; then
+        echo "$1"
+    else
+        echo "$1 This may prompt for your password."           
+    fi  
+}
     
 getVMImage () {
-    # Check if we've already copied an image locally - don't download it again!
+
+    # Check if there is already an image installed
     if [ -f ${VM_INSTALLED} ]; then
         echo "Using the appliance found at ${VM_INSTALLED}."
     	echo "(If that's not what you wanted, delete that file and try again.)"
+        return
     fi
-    
-    if [ ! -f ${VM_INSTALLED} ]; then
-    	echo
-    	echo ===========================================================================
-    	echo ================================ Step One =================================
-    	echo =================================DOWNLOAD==================================
-    	echo ===========================================================================
-    	echo
-    	echo "Creating the download location. This may prompt for your password."
-    	if [ ! -d ${VM_INSTALL_DIR} ]; then
-    	  $KVMSUDO mkdir ${VM_INSTALL_DIR}
-    	fi
-    
-    	# Running off a USB stick; image in the current working directory
-    	if [ -f ${VM_ZIP_FILE} ]; then
-    		echo "(I think I'm running from a USB stick here...)"
-    		echo "Copying the Death Star Virtual Appliance image. Please wait, it's a 1.2GB file..."	
-    		$KVMSUDO cp ${VM_ZIP_FILE} ${VM_INSTALL_DIR}
-            decompressImage
-    	fi
-    	
-    	# Not running off a USB stick, download the image
-    	if [ ! -f ${VM_FILE_NAME} ]; then
-    		echo "Downloading the Death Star Virtual Appliance image."
-    		echo 
-    		echo "It's ~1.2GB, and coming from your nearest Amazon CloudFront edge location"
-    		echo 
-    		# Download the vmimage
-    		# curl supports resume with "-C -" 
-    		echo "Downloading the image"
-    		curl -C - -L -O ${VM_FILE_URL}
-            decompressImage
-    	fi
-    fi    
+
+    # Check if there is an unconverted image in the install directory (Mac OS X)
+    if [ -f ${VM_INSTALL_DIR}/${VM_RAW_FILE} ]; then
+        echo "Using the appliance image found at ${VM_INSTALL_DIR}/${VM_RAW_FILE}."
+        echo "(If that's not what you wanted, delete that file and try again.)"
+        return
+    fi
+
+	echo
+	echo ===========================================================================
+	echo ================================ Step One =================================
+	echo =================================DOWNLOAD==================================
+	echo ===========================================================================
+	echo
+
+    # Create the installation target directory if necessary
+	if [ ! -d ${VM_INSTALL_DIR} ]; then
+        actionMsg "Creating the download location."
+	    $KVMSUDO mkdir ${VM_INSTALL_DIR}
+	fi
+
+    # We've copied an image to the install directory, probably from a USB install
+    if [ -f ${VM_INSTALL_DIR}/${VM_ZIP_FILE} ]; then
+        echo "Using the downloaded image found at ${VM_INSTALL_DIR}/${VM_ZIP_FILE}."
+        echo "If that's not what you wanted, delete the file and re-run."
+        cd ${VM_INSTALL_DIR}
+        decompressImage
+
+	# Running off a USB stick, or in the same directory as a previous network install; image in the current working directory
+	elif [ -f ${VM_ZIP_FILE} ]; then
+		echo "An image is available on locally-attached media."
+		actionMsg "Copying the image to ${VM_INSTALL_DIR}. This will take some time... Apologies for the lack of progress feedback."	
+		$KVMSUDO cp ${VM_ZIP_FILE} ${VM_INSTALL_DIR}
+        cd ${VM_INSTALL_DIR}
+        decompressImage
+
+	# Not running off a USB stick, download the image
+	elif [ ! -f ${VM_ZIP_FILE} ]; then
+		echo "Downloading the Death Star Virtual Appliance image over the network. It's ~1.2GB..."
+		echo 
+		# Download the vmimage
+		# curl supports resume with "-C -" 
+		curl -C - -L -O ${VM_FILE_URL}
+
+        # Decompress the image here, then move it to the install location
+        decompressImage
+
+        actionMsg "Moving image to installation location ${VM_INSTALL_DIR}."
+        $KVMSUDO mv ${VM_FILE_NAME} ${VM_INSTALL_DIR} 
+        cd ${VM_INSTALL_DIR}
+	fi  
 }
 
 decompressImage () {
-    echo "Decompressing image..."
+    echo "Decompressing the image. This will take a while... Apologies for the lack of progress feedback."
     tar -zxf ${VM_ZIP_FILE}
+    # This should be called on a copy of the zip image, to avoid decompressing it in place on a USB stick
+    # Since it was a local copy, if it decompressed ok, we'll delete the local copy to save space
     if [ -f ${VM_FILE_NAME} ]; then
         rm ${VM_ZIP_FILE}
     fi  
@@ -295,7 +329,7 @@ installMsg () {
     echo =================================INSTALL===================================
     echo ===========================================================================
     echo
-    echo "Performing installation. This may prompt for your password."   
+    actionMsg "Performing installation."   
 }
     
 createNetworkKVM () {
@@ -344,18 +378,28 @@ createHostsEntry () {
     
     SUCCESS=0             
     hostline="${IPADDR} ${FQN}"
-    filename=/etc/hosts
+    HOSTS_FILE=/etc/hosts
     
     # Determine if the line already exists in /etc/hosts
-    grep -q "$hostline" "$filename"  # -q is for quiet. Shhh...
+    grep -q "$hostline" "$HOSTS_FILE"  # -q is for quiet. Shhh...
     
     # Grep's return error code can then be checked. No error=success
     if [ $? -ne $SUCCESS ]
     then
         # If the line wasn't found, add it using an echo append >>
-        sudo echo "$hostline" >> "$filename"
-        echo "Adding hosts entry"
+        actionMsg "Adding hosts entry." "TRUE"
         echo
+        # This is a bit of a hack. 'sudo echo "something" >> /etc/hosts' does not work. So if we don't have root
+        # then we get the perms of /etc/hosts, use sudo to make it writable for the current user
+        # update it, then restore perms.
+        if [ whoami != 'root' ]; then
+            $GET_PERMISSIONS_OF $HOSTS_FILE
+            sudo chmod 777 $HOSTS_FILE
+            echo "$hostline" >> "$HOSTS_FILE"
+            sudo chmod $st_mode $HOSTS_FILE
+        else
+            echo "$hostline" >> "$HOSTS_FILE"
+        fi
     fi
 }
 
@@ -370,23 +414,33 @@ installVM_VirtualBox () {
     # Create and configure the VirtualBox VM
     VBoxManage createvm --name "${APPLIANCE_NAME}" --ostype "RedHat" --register
     VBoxManage modifyvm "${APPLIANCE_NAME}" --memory "512"
+    VBoxManage modifyvm "${APPLIANCE_NAME}" --autostart-enabled on
+
+    # Storage configuration
     VBoxManage storagectl "${APPLIANCE_NAME}" --add sata --bootable on --name "SATA"
     VBoxManage storageattach "${APPLIANCE_NAME}" --storagectl "SATA" --port 0 --device 0 --type hdd --medium $VM_INSTALLED
+    
+    # Network adapters
+    # Mac addresses from here: http://www.miniwebtool.com/mac-address-generator/
     # Host-only adapter for communication with host
-    VBoxManage modifyvm "${APPLIANCE_NAME}" --nic1 hostonly 
+    VBoxManage modifyvm "${APPLIANCE_NAME}" --nic1 hostonly --macaddress1 3A8F11A5172B
     VBoxManage modifyvm "${APPLIANCE_NAME}" --hostonlyadapter1 "vboxnet0"
     # NAT adapter for communication with external world
-    VBoxManage modifyvm "Death Star Appliance" --nic2 nat
-    VBoxManage modifyvm "${APPLIANCE_NAME}" --autostart-enabled on
+    VBoxManage modifyvm "Death Star Appliance" --nic2 nat --macaddress2 0002B3F7FE2A
     
     # Start the VM
     VBoxManage startvm "${APPLIANCE_NAME}" &
 }
 
 convertRAW2VDI () {
+    cd ${VM_INSTALL_DIR}
     if [ ! -f $VM_INSTALLED ]; then
-        echo "Converting image to VirtualBox format..."
-        VBoxManage convertfromraw $VM_RAW_FILE $VM_INSTALLED --format VDI    
+        if [ -f $VM_RAW_FILE ]; then
+            echo "Converting image to VirtualBox format..."
+            VBoxManage convertfromraw $VM_RAW_FILE $VM_INSTALLED --format VDI    
+        else
+            echo "Something went wrong, I can't find `pwd`/${VM_RAW_FILE}"
+        fi
     fi 
     
     # Leave this commented for troubleshooting - can do multiple runs with the
