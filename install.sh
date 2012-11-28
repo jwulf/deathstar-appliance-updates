@@ -52,21 +52,13 @@ if [ "$UNAME" != "Linux" -a "$UNAME" != "Darwin" ] ; then
 fi
 
 setCommonSettings () {
-    VM_FILE_URL="http://d1nolx37rkohbv.cloudfront.net/deathstar-virtual-appliance-sda.raw"
+    VM_FILE_URL="http://d1nolx37rkohbv.cloudfront.net/deathstar-virtual-appliance-sda.raw.tar.gz"
+    VM_ZIP_FILE="deathstar-virtual-appliance-sda.raw.tar.gz"
     STARTUP_URL="http://www.tinyurl.com/start-deathstar"
     VM_FILE_NAME="deathstar-virtual-appliance-sda.raw"
     NETWORK_NAME="deathstar"
     FQN="${NETWORK_NAME}.local"
 }
-
-dontRunWithRoot () {    
-    if [ `whoami` = 'root' ] ; then    
-        echo "Please don't run this as root. I need to create the appliance in your user account."
-        echo "The installer will request sudo when it needs it"
-        exit 1
-    fi
-}
-    
     
 setKVMSettings () {
     # Used on RHEL / Fedora / Ubuntu    
@@ -92,6 +84,14 @@ setVirtualBoxSettings () {
     KVMSUDO=""
 }
 
+dontRunWithRoot () {    
+    if [ `whoami` = 'root' ] ; then    
+        echo "Please don't run this as root. I need to create the appliance in your user account."
+        echo "The installer will request sudo when it needs it"
+        exit 1
+    fi
+}
+    
 introMsg () {
     clear
     echo
@@ -256,22 +256,32 @@ getVMImage () {
     	# Running off a USB stick; image in the current working directory
     	if [ -f ${VM_FILE_NAME} ]; then
     		echo "(I think I'm running from a USB stick here...)"
-    		echo "Copying the Death Star Virtual Appliance image. Please wait, it's a 3.5GB file..."	
-    		$KVMSUDO cp ${VM_FILE_NAME} ${VM_INSTALL_DIR}
+    		echo "Copying the Death Star Virtual Appliance image. Please wait, it's a 1.2GB file..."	
+    		$KVMSUDO cp ${VM_ZIP_FILE} ${VM_INSTALL_DIR}
+            decompressImage
     	fi
     	
     	# Not running off a USB stick, download the image
     	if [ ! -f ${VM_FILE_NAME} ]; then
     		echo "Downloading the Death Star Virtual Appliance image."
     		echo 
-    		echo "It's ~3.5GB, and coming from your nearest Amazon CloudFront edge location"
+    		echo "It's ~1.2GB, and coming from your nearest Amazon CloudFront edge location"
     		echo 
     		# Download the vmimage
     		# curl supports resume with "-C -" 
     		echo "Downloading the image"
     		curl -C - -L -O ${VM_FILE_URL}
+            decompressImage
     	fi
     fi    
+}
+
+decompressImage () {
+    echo "Decompressing image..."
+    tar -zxf ${VM_ZIP_FILE}
+    if [ -f ${VM_FILE_NAME} ]; then
+        rm ${VM_ZIP_FILE}
+    fi  
 }
 
 installMsg () {
@@ -358,8 +368,11 @@ installVM_VirtualBox () {
     VBoxManage modifyvm "${APPLIANCE_NAME}" --memory "512"
     VBoxManage storagectl "${APPLIANCE_NAME}" --add sata --bootable on --name "SATA"
     VBoxManage storageattach "${APPLIANCE_NAME}" --storagectl "SATA" --port 0 --device 0 --type hdd --medium $VM_INSTALLED
+    # Host-only adapter for communication with host
     VBoxManage modifyvm "${APPLIANCE_NAME}" --nic1 hostonly 
     VBoxManage modifyvm "${APPLIANCE_NAME}" --hostonlyadapter1 "vboxnet0"
+    # NAT adapter for communication with external world
+    VBoxManage modifyvm "Death Star Appliance" --nic2 nat
     VBoxManage modifyvm "${APPLIANCE_NAME}" --autostart-enabled on
     
     # Start the VM
