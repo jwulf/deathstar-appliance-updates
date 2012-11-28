@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # This script installs the Death Star virtual appliance from a USB key or over the network
-# script version: 0.92
+# script version: 0.93
 # license: GPL
 
 # Code:
@@ -41,6 +41,10 @@
 # versin 0.92
 #  Joshua Wulf
 #  - Added support for Ubuntu with KVM
+#
+# version 0.93
+#  Joshua Wulf <jwulf@redhat.com>
+#  - VM Image is now tar gzipped - it will be decompressed after download
 #
 ############ /CHANGELOG ##############
 
