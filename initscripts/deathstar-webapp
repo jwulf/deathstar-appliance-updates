@@ -34,7 +34,7 @@ SERVICE_STARTUP_WAIT=7
 # Source function library.
 #. /etc/rc.d/init.d/functions
 
-bootup() {
+start() {
 	if [ -f /var/run/deathstar.pid ]; then
 		source /var/run/deathstar.pid
 		servers=0
@@ -69,7 +69,7 @@ bootup() {
 	# Start the server
  	cd $INSTALLDIR 
 
-	if [ "$1" = "start" ]; then
+	if [ "x$1" = "x" ]; then
 		echo "Starting the Death Star..."
 		meteor -p 80 > /dev/null &
 		# we launched the process asynchronously, so wait for a few seconds
@@ -146,7 +146,7 @@ stop() {
 
 restart() {
     stop
-    bootup start
+    start
 }
 
 status() {
@@ -199,21 +199,22 @@ status() {
 }
 
 reset () {
+    stop
 	echo "Deleting the Death Star application and re-checking out from git..."
 	rm -rf $INSTALLDIR
 	cd /opt
 	git clone git://github.com/jwulf/deathstar-appliance.git
-	bootup start
+    start
 }
 
 
 case "$1" in
     start)
-        bootup $1 
+        $1 
         ;;
     debug)
-	bootup $1
-	;;
+    	start $1
+    	;;
     stop)
         $1
         ;;
@@ -221,14 +222,13 @@ case "$1" in
         $1
         ;;
     status)
-	$1
-	;;
+    	$1
+    	;;
     reset)
-	stop
-	$1
-	;;
+    	$1
+    	;;
     *)
-        echo $"Usage: $0 {start|stop|restart|debug|status}"
+        echo $"Usage: $0 {start|stop|status|restart|debug|reset}"
         exit 2
 esac
 exit $?
