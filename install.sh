@@ -45,6 +45,7 @@
 # version 0.93
 #  Joshua Wulf <jwulf@redhat.com>
 #  - VM Image is now tar gzipped - it will be decompressed after download
+#  - Added HW Addresses for VirtualBox NICs
 #
 ############ /CHANGELOG ##############
 
