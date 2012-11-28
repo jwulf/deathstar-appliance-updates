@@ -15,12 +15,14 @@
 ### END INIT INFO
 
 LOGO=/opt/logo
+DEETS=/opt/contact_details
 HOSTNAME=`/bin/uname -a | awk '{print $2}'`
 IP_ADDRESS=`ip addr list eth0 | grep "inet " | cut -d' ' -f6 | cut -d/ -f1 | head -1`
 
 cat $LOGO > /etc/motd
 VERSION=`cat /root/VERSION`
 echo -e "\nAppliance:\tDeath Star Appliance $VERSION\nHostname:\t$HOSTNAME\nIP Address:\t$IP_ADDRESS\n" >> /etc/motd
+echo -e "\nblog:\thttp://tinyurl.com/deathstar-blog\nirc:\t#deathstar on Freenode\nbug:\thttp://tinyurl.com/new-bug-deathstar\nbugs:\thttp://tinyurl.com/deathstar-bugs\n" >> /etc/motd
 
 exit 0
 
