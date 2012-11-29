@@ -47,6 +47,9 @@
 #  - VM Image is now tar gzipped - it will be decompressed after download
 #  - Added HW Addresses for VirtualBox NICs
 #
+# version 0.93.1
+#  Joshua Wulf <jwulf@redhat.com>
+#  USB image file now needs to be in a directory './image' relative to install.sh
 ############ /CHANGELOG ##############
 
 UNAME=`uname`
@@ -58,6 +61,9 @@ fi
 
 setCommonSettings () {
     VM_FILE_URL="http://d1nolx37rkohbv.cloudfront.net/deathstar-virtual-appliance-sda.raw.tar.gz"
+    # Having the USB image file in relative directory './image' protects against confusion
+    # from failed partial downloads
+    LOCAL_FILE="./image/deathstar-virtual-appliance-sda.raw.tar.gz"
     VM_ZIP_FILE="deathstar-virtual-appliance-sda.raw.tar.gz"
     STARTUP_URL="http://www.tinyurl.com/start-deathstar"
     VM_FILE_NAME="deathstar-virtual-appliance-sda.raw"
@@ -289,24 +295,24 @@ getVMImage () {
         decompressImage
 
 	# Running off a USB stick, or in the same directory as a previous network install; image in the current working directory
-	elif [ -f ${VM_ZIP_FILE} ]; then
+	elif [ -f ${LOCAL_FILE} ]; then
 		echo "An image is available on locally-attached media."
 		actionMsg "Copying the image to ${VM_INSTALL_DIR}. This will take some time... Apologies for the lack of progress feedback."	
-		$KVMSUDO cp ${VM_ZIP_FILE} ${VM_INSTALL_DIR}
+		$KVMSUDO cp ${LOCAL_FILE} ${VM_INSTALL_DIR}
         cd ${VM_INSTALL_DIR}
         decompressImage
 
 	# Not running off a USB stick, download the image
 	elif [ ! -f ${VM_ZIP_FILE} ]; then
-		echo "Downloading the Death Star Virtual Appliance image over the network. It's ~1.2GB..."
-		echo 
-		# Download the vmimage
-		# curl supports resume with "-C -" 
-		curl -C - -L -O ${VM_FILE_URL}
-
+        echo "Downloading the Death Star Virtual Appliance image over the network. It's ~1.2GB..."
+        echo 
+        # Download the vmimage
+        # curl supports resume with "-C -" 
+        curl -C - -L -O ${VM_FILE_URL}
+        
         # Decompress the image here, then move it to the install location
         decompressImage
-
+        
         actionMsg "Moving image to installation location ${VM_INSTALL_DIR}."
         $KVMSUDO mv ${VM_FILE_NAME} ${VM_INSTALL_DIR} 
         cd ${VM_INSTALL_DIR}
@@ -479,6 +485,13 @@ openURL_Linux () {
     xdg-open ${STARTUP_URL} > /dev/null &
 }
 
+onlyRunWithRoot () {
+    if [ ! `whoami` = "root" ]; then
+        echo "This script requires root access to install. Please re-run using sudo"
+        exit 1
+    fi
+}
+
         
 if [ "$UNAME" = "Darwin" ] ; then
     ### OSX ###
@@ -536,6 +549,8 @@ elif [ "$UNAME" = "Linux" ] ; then
     elif [ -f /etc/redhat-release -o -x /bin/rpm ] ; then
         ## Red Hat / Fedora ##
 
+        onlyRunWithRoot
+        
         setCommonSettings   
         setKVMSettings
         
