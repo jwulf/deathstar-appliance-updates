@@ -38,7 +38,7 @@
 #  Joshua Wulf <jwulf@redhat.com>
 #  - Added support for Mac OS X with Oracle VirtualBox
 #
-# versin 0.92
+# version 0.92
 #  Joshua Wulf
 #  - Added support for Ubuntu with KVM
 #
@@ -65,7 +65,7 @@ setCommonSettings () {
     # from failed partial downloads
     LOCAL_FILE="./image/deathstar-virtual-appliance-sda.raw.tar.gz"
     VM_ZIP_FILE="deathstar-virtual-appliance-sda.raw.tar.gz"
-    STARTUP_URL="http://www.tinyurl.com/start-deathstar"
+    STARTUP_URL="http://tinyurl.com/start-deathstar"
     VM_FILE_NAME="deathstar-virtual-appliance-sda.raw"
     NETWORK_NAME="deathstar"
     FQN="${NETWORK_NAME}.local"
@@ -291,14 +291,15 @@ getVMImage () {
 	fi
 
     # We've copied an image to the install directory, probably from a USB install
-    if [ -f ${VM_INSTALL_DIR}/${VM_ZIP_FILE} ]; then
-        echo "Using the downloaded image found at ${VM_INSTALL_DIR}/${VM_ZIP_FILE}."
-        echo "If that's not what you wanted, delete the file and re-run."
-        cd ${VM_INSTALL_DIR}
-        decompressImage
+#    if [ -f ${VM_INSTALL_DIR}/${VM_ZIP_FILE} ]; then
+#        echo "Using the downloaded image found at ${VM_INSTALL_DIR}/${VM_ZIP_FILE}."
+#        echo "If that's not what you wanted, delete the file and re-run."
+#        cd ${VM_INSTALL_DIR}
+#        decompressImage
 
-	# Running off a USB stick, or in the same directory as a previous network install; image in the current working directory
-	elif [ -f ${LOCAL_FILE} ]; then
+	# Running off a USB stick, image found as ./image/<file>
+	
+	if [ -f ${LOCAL_FILE} ]; then
 		echo "An image is available on locally-attached media."
 		actionMsg "Copying the image to ${VM_INSTALL_DIR}. This will take some time... Apologies for the lack of progress feedback."	
 		$KVMSUDO cp ${LOCAL_FILE} ${VM_INSTALL_DIR}
@@ -306,7 +307,7 @@ getVMImage () {
         decompressImage
 
 	# Not running off a USB stick, download the image
-	elif [ ! -f ${VM_ZIP_FILE} ]; then
+	else
         echo "Downloading the Death Star Virtual Appliance image over the network. It's ~1.2GB..."
         echo 
         # Download the vmimage
@@ -490,16 +491,21 @@ openURL_Linux () {
 
 onlyRunWithRoot () {
     if [ ! `whoami` = "root" ]; then
+        echo
         echo "This script requires root access to install. Please re-run using the root account."
         echo "You can do this by switching to the root account before running the installer:"
         echo "'su -'"
-        echo "If you have sudo configured on your machine, from USB use:"
-        echo "'sudo bash install.sh'"
-        echo "If you have sudo with a password, from the network:"
+        echo
+        echo "Alternative methods, if you have sudo configured:"
+        echo "From the network, if you have sudo with a password:"
         echo "sudo su -"
         echo "curl -L <.....> | bash"
-        echo "If you have passwordless sudo set up, you can do:"
+        echo
+        echo "From the network, if your sudo does not require a password:"
         echo "'curl -L <....> | sudo bash'"
+        echo
+        echo "From USB, if you have sudo set up:"
+        echo "'sudo bash install.sh'"
         exit 1
     fi
 }
