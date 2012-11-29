@@ -131,7 +131,10 @@ introMsg () {
     echo ===========================================================================
     echo
     echo "Please stand by while we check the virtualization plumbing...."
-    echo    
+    echo 
+    echo "Note: This is a virtual appliance, so installing *inside* a virtual machine" 
+    echo "is not 'supported'. If you do get that to work, take a screenshot,  "
+    echo "photoshop 'Inception' on the bottom, and upload to 9Gag.com"   
 }
 
 checkPreReqsMacOS () {
@@ -487,7 +490,16 @@ openURL_Linux () {
 
 onlyRunWithRoot () {
     if [ ! `whoami` = "root" ]; then
-        echo "This script requires root access to install. Please re-run using sudo"
+        echo "This script requires root access to install. Please re-run using the root account."
+        echo "You can do this by switching to the root account before running the installer:"
+        echo "'su -'"
+        echo "If you have sudo configured on your machine, from USB use:"
+        echo "'sudo bash install.sh'"
+        echo "If you have sudo with a password, from the network:"
+        echo "sudo su -"
+        echo "curl -L <.....> | bash"
+        echo "If you have passwordless sudo set up, you can do:"
+        echo "'curl -L <....> | sudo bash'"
         exit 1
     fi
 }
