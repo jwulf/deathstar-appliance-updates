@@ -491,7 +491,9 @@ openURL_Linux () {
 
 onlyRunWithRoot () {
     if [ ! `whoami` = "root" ]; then
-        echo
+        echo \n
+        echo "========== Requires root access to install =========="
+        echo \n
         echo "This script requires root access to install. Please re-run using the root account."
         echo "You can do this by switching to the root account before running the installer:"
         echo "'su -'"
