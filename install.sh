@@ -130,11 +130,12 @@ introMsg () {
     echo ================================PREPARATION================================
     echo ===========================================================================
     echo
-    echo "Please stand by while we check the virtualization plumbing...."
-    echo 
     echo "Note: This is a virtual appliance, so installing *inside* a virtual machine" 
     echo "is not 'supported'. If you do get that to work, take a screenshot,  "
     echo "photoshop 'Inception' on the bottom, and upload to 9Gag.com"   
+    echo
+    echo "Please stand by while we check the virtualization plumbing...."
+    echo 
 }
 
 checkPreReqsMacOS () {
