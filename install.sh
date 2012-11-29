@@ -498,7 +498,8 @@ onlyRunWithRoot () {
         echo "You can do this by switching to the root account before running the installer:"
         echo "'su -'"
         echo
-        echo "Alternative methods, if you have sudo configured:"
+        echo "Alternatively, if you have sudo configured:"
+        echo
         echo "From the network, if you have sudo with a password:"
         echo "sudo su -"
         echo "curl -L <.....> | bash"
@@ -511,7 +512,6 @@ onlyRunWithRoot () {
         exit 1
     fi
 }
-
         
 if [ "$UNAME" = "Darwin" ] ; then
     ### OSX ###
