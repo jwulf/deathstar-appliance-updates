@@ -500,14 +500,14 @@ onlyRunWithRoot () {
         echo
         echo "Alternatively, if you have sudo configured:"
         echo
-        echo "From the network, if you have sudo with a password:"
+        echo "From the network, and sudo with a password:"
         echo "sudo su -"
         echo "curl -L <.....> | bash"
         echo
-        echo "From the network, if your sudo does not require a password:"
+        echo "From the network, and sudo does not require a password:"
         echo "'curl -L <....> | sudo bash'"
         echo
-        echo "From USB, if you have sudo set up:"
+        echo "From USB:"
         echo "'sudo bash install.sh'"
         exit 1
     fi
